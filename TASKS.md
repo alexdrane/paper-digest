@@ -24,7 +24,7 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
-- [ ] status: claimed | claimed: alex-drane-75 | **Save/star a paper — a real "collect interesting references" list.**
+- [x] Save/star a paper — done by alex-drane-75. **Save/star a paper — a real "collect interesting references" list.**
   Distinct from both "cached" (fetched once, no intent attached) and "open in
   this session" (`/library`, lives in server memory, resets on every restart —
   see the earlier lost-papers issue). A save is a deliberate action: keep a
@@ -46,7 +46,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   Files: `scripts/viewer.py` (routes + storage), `scripts/viewer.html` (star
   UI), `scripts/bridge.py` (new command).
 
-- [ ] status: claimed | claimed: alex-drane-21 | **Word-wrapped prose in an answer renders as one line per wrap.**
+- [x] Word-wrapped prose rendering. Done by alex-drane-21.
   `md()` calls `marked.parse(text,{breaks:true})`, which turns every single
   `\n` into a `<br>`. That's fine for genuinely short lines, but any answer
   authored with mid-paragraph line wrapping (very easy to do by hand when
