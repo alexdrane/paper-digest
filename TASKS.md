@@ -24,6 +24,26 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: open | claimed: — | **Bug: a lost answer can never be recovered, even by refreshing.**
+  `addCard()` calls `saveState()` immediately on creation, while the card still
+  says "queued for your Claude window" and `el.dataset.raw` is empty — so an
+  empty placeholder gets written to `workspace.json` right away. If the SSE
+  stream that's supposed to deliver the real answer then gets stranded (e.g. a
+  server restart while it's mid-retry, or the tab loses the connection for any
+  other reason) and the retry logic in `streamJob()` eventually gives up, the
+  card is left holding empty content — and because that was already persisted,
+  even reloading the page just restores the same empty card. The answer is
+  often still recoverable (it exists on disk in
+  `~/.local/share/paper-digest/bridge/answers/<job>.md` until something cleans
+  that directory), but nothing in the running app re-checks for it once a
+  card's initial `saveState()` has fired.
+  Fix direction: don't persist an insert's empty/placeholder state at all (skip
+  `saveState()` in `addCard` until real content or a terminal error arrives),
+  and/or have `streamJob`'s give-up path do one last check against
+  `/pending`+the bridge answers dir before declaring the connection lost, so a
+  stray answer that arrived after the last retry isn't stranded forever.
+  Files: `scripts/viewer.html` (`addCard`, `streamJob`).
+
 - [ ] status: claimed | claimed: alex-drane-75 | **UI polish: long titles, figure loading state.**
   Two reported issues: (1) long paper/section titles render unbounded and look
   bad — the `#paperSelect` dropdown options show the full title (native
