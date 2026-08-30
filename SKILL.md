@@ -90,6 +90,12 @@ cite the front matter or a heading block, and don't turn every sentence into a
 chip. `[[bNN]]` is for paper blocks only — bibliography references still render
 through the paper's own `\cite` numbers.
 
+**Don't hard-wrap prose.** Write each paragraph of an answer as one long line
+and separate paragraphs with a blank line. The window renders single newlines
+as line breaks, so a paragraph wrapped at a fixed column comes out as a column
+of choppy lines. (`md()` now unwraps single newlines defensively, but keep the
+source clean — lists, tables and code blocks still depend on real newlines.)
+
 Three kinds arrive:
 
 - `question` — a passage and their question. Answer it directly, in Markdown;
