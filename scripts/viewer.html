@@ -423,6 +423,7 @@ let CURRENT='';
 function renderPaperDoc(p){
   const isSwitch = CURRENT && CURRENT!==p.arxiv_id;
   PAPER=p; CURRENT=p.arxiv_id;
+  try{localStorage.setItem('pd-last',p.arxiv_id);}catch(e){}
   document.title=p.title;
   setSaveBtn(!!p.saved);
   picked.clear(); $('selbar').style.display='none';
@@ -483,7 +484,15 @@ function wrapFigures(){
 /* Native <select> options can't ellipsis via CSS - truncate the string. */
 function trunc(s,n){s=String(s||'');return s.length>n?s.slice(0,n-1).trimEnd()+'…':s;}
 
-fetch('/paper').then(r=>r.json()).then(renderPaperDoc);
+/* A bare /paper resolves to the launch paper server-side, so a plain refresh
+   while viewing a citation-opened paper would snap back to it (and its pending
+   queue items would stop showing). Reopen whatever was last viewed. */
+(function loadInitialPaper(){
+  let last=null;
+  try{last=localStorage.getItem('pd-last');}catch(e){}
+  const first=last?fetch('/paper?id='+encodeURIComponent(last)).then(r=>r.ok?r.json():Promise.reject()):Promise.reject();
+  first.catch(()=>fetch('/paper').then(r=>r.json())).then(renderPaperDoc);
+})();
 
 /* ---- save / star the open paper ---- */
 function setSaveBtn(on){
