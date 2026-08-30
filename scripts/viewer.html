@@ -754,11 +754,13 @@ function summariseSelected(){const s=lastPickedSec();if(s)requestCard(s,'summary
 /* ---- insert menu ---- */
 function openMenu(e,sec){
   e.stopPropagation();
+  const isH2=sec.classList.contains('sec');
+  const label=isH2?'section':'subsection';
   const m=$('menu');
   m.innerHTML='<div class="hint">Insert after “'+esc(sec.dataset.name)+'”</div>'
-    +'<button data-k="quiz">Quiz on this section</button>'
-    +'<button data-k="quiz-upto">Quiz on everything so far</button>'
-    +'<button data-k="summary">Summary of this section</button>'
+    +`<button data-k="quiz">Quiz on this ${label}</button>`
+    +(isH2?'<button data-k="quiz-upto">Quiz on everything so far</button>':'')
+    +`<button data-k="summary">Summary of this ${label}</button>`
     +'<button data-k="note">My own note</button>';
   m.style.display='block';
   const r=e.target.getBoundingClientRect();
@@ -811,13 +813,15 @@ function addCard(sec,kind,content,names,restoring){
     if(content&&kind!=='quiz') MathJax.typesetPromise([body]);
   }
   if(el.dataset.place==='top'){
+    // h2 sections wrap a .secbody to insert before; a subsection heading's own
+    // .blk has none, so top and bottom placement both just mean "right after it"
     const bodyw=sec.querySelector('.secbody');
-    bodyw?bodyw.before(el):sec.appendChild(el);
+    bodyw?bodyw.before(el):sec.after(el);
   }else{
     (sec.nextElementSibling?.classList.contains('gap')
       ? sec.nextElementSibling : sec).after(el);
   }
-  markRail(sec);
+  if(sec.classList.contains('sec')) markRail(sec);
   if(!restoring){
     el.classList.add('new');
     setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'center'}),60);
@@ -1004,6 +1008,17 @@ function decorateHeadings(){
     h.appendChild(t);
     t.querySelector('.tg').onclick=e=>{e.stopPropagation();toggleSection(h);};
     t.querySelector('.sm').onclick=e=>{e.stopPropagation();summarise(h);};
+
+    // subsections get the same "+ insert block" gap sections do, targeting this
+    // h3's own .blk (it has no .secbody wrapper - addCard/markRail handle that)
+    const blk=h.closest('.blk');
+    blk.dataset.name=headingName(h);
+    blk.dataset.anchor=h.id;
+    const gap=document.createElement('div');
+    gap.className='gap';
+    gap.innerHTML='<button>+ insert block</button>';
+    gap.querySelector('button').onclick=e=>openMenu(e,blk);
+    blk.after(gap);
   });
 }
 function headingName(h){
