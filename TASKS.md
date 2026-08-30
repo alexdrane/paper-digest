@@ -24,6 +24,28 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: open | claimed: — | **Bug: LIB/FIGDIRS/WORKDIRS reset on every server restart.**
+  Same root cause behind two separate user-visible symptoms: (1) the
+  paper-switcher dropdown only ever shows the paper the process launched on
+  after any restart — every paper opened via a citation click is gone from
+  `/library`, even though its cache on disk is fully intact; (2) worse, every
+  figure for a paper not in the *current process's* `FIGDIRS` 404s outright —
+  `/figure` looks up `FIGDIRS.get(id)` which is populated only by `load()`,
+  and `load()` only runs for a paper actually opened in this run. Confirmed:
+  reopening the paper via `/open` immediately fixes its figures again, so the
+  image files and conversions are fine — it's purely that the server forgot
+  the paper existed. This has been happening on every worktree-branch merge
+  this session (each merge needs a restart to pick up the code), so it's not
+  a rare edge case in practice.
+  Fix direction: persist which arXiv ids have been opened (a small JSON list
+  next to `saved.json`, e.g. `open_papers.json` — NOT the full render, just
+  the id list) and on startup, restore `LIB`/`FIGDIRS`/`WORKDIRS` for each one
+  by re-running `load()` before the server starts serving. Cheap since
+  `load()` only re-fetches if `fulltext.txt` is missing — everything else is
+  already cached on disk.
+  Files: `scripts/viewer.py` (`load`, startup, a small persistence helper next
+  to the existing `load_saved`/`write_saved` pattern for saved papers).
+
 - [x] Save/star a paper — done by alex-drane-75. **Save/star a paper — a real "collect interesting references" list.**
   Distinct from both "cached" (fetched once, no intent attached) and "open in
   this session" (`/library`, lives in server memory, resets on every restart —
