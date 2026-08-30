@@ -29,7 +29,7 @@ from pathlib import Path
 CACHE = Path.home() / ".local/share/paper-digest/cache"
 API = "http://export.arxiv.org/api/query"
 UA = "paper-digest/0.1 (personal research reading tool)"
-IMAGE_EXT = (".png", ".jpg", ".jpeg", ".pdf", ".eps", ".gif")
+IMAGE_EXT = (".png", ".jpg", ".jpeg", ".pdf", ".eps", ".ps", ".gif")
 ATOM = "{http://www.w3.org/2005/Atom}"
 ARX = "{http://arxiv.org/schemas/atom}"
 

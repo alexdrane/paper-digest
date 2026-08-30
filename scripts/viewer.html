@@ -335,6 +335,12 @@ h2[data-collapsed='1']::after,h3[data-collapsed='1']::after{
 .cstatus{font:400 11.5px Inter,sans-serif;color:var(--faint)}
 .openin{background:none;border:1px solid var(--accent);color:var(--accent);border-radius:5px;
         font:600 11px Inter,sans-serif;padding:.25rem .55rem;cursor:pointer}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid var(--line);
+      border-top-color:var(--accent);border-radius:50%;vertical-align:-1px;
+      margin-right:.4rem;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.cstatus.err{color:#b3261e}
+.cstatus a{color:var(--accent)}
 .openin:hover{background:var(--accent-soft)}
 </style>
 
@@ -470,13 +476,24 @@ function openCitePopover(e,cite){
        const hit=res[k]&&res[k].match;
        if(!hit){row.textContent='not found on arXiv';return;}
        row.innerHTML=`<button class="openin">Open arXiv:${hit.arxiv_id} in reader →</button>`;
-       row.querySelector('.openin').onclick=()=>{
-         row.textContent='opening…';
+       row.querySelector('.openin').onclick=(ev)=>{
+         ev.stopPropagation();   // else the document-level click-away listener
+                                 // closes this popover on the same click, and
+                                 // the fetch below runs with no visible sign of it
+         m.querySelectorAll('.openin').forEach(b=>b.disabled=true);
+         row.innerHTML=`<span class="spin"></span>fetching arXiv:${hit.arxiv_id}`
+                      +` — can take up to a minute for a large paper…`;
          fetch('/open',{method:'POST',headers:{'Content-Type':'application/json'},
            body:JSON.stringify({id:hit.arxiv_id})})
-          .then(r=>r.json()).then(doc=>{
+          .then(r=>r.ok?r.json():r.json().then(e=>Promise.reject(e.error||'failed')))
+          .then(doc=>{
             m.style.display='none';
             renderPaperDoc(doc);
+            toast(`Opened arXiv:${hit.arxiv_id}`);
+          })
+          .catch(err=>{
+            row.innerHTML=`<span class="err cstatus">Couldn't open it: ${esc(String(err))}</span>`;
+            m.querySelectorAll('.openin').forEach(b=>b.disabled=false);
           });
        };
      });

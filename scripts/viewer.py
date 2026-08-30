@@ -223,7 +223,7 @@ def figure(name: str):
         return "", 404
     src = figdir / Path(name).name
     for cand in (src, src.with_suffix(".png"), src.with_suffix(".jpg"),
-                 src.with_suffix(".pdf")):
+                 src.with_suffix(".pdf"), src.with_suffix(".eps"), src.with_suffix(".ps")):
         if cand.exists() and cand.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif"):
             return send_file(cand)
         if cand.exists() and cand.suffix.lower() == ".pdf":
@@ -231,6 +231,19 @@ def figure(name: str):
             if not png.exists():
                 subprocess.run(["pdftoppm", "-png", "-r", "150", "-singlefile",
                                 str(cand), str(png.with_suffix(""))], check=False)
+            if png.exists():
+                return send_file(png)
+        if cand.exists() and cand.suffix.lower() in (".eps", ".ps"):
+            # Ghostscript renders both directly; -dEPSCrop keeps an EPS's real
+            # bounding box instead of an oversized/blank page around the figure.
+            png = cand.with_suffix(".conv.png")
+            if not png.exists():
+                args = ["gs", "-q", "-dNOPAUSE", "-dBATCH", "-dSAFER",
+                        "-sDEVICE=png16m", "-r150", f"-sOutputFile={png}"]
+                if cand.suffix.lower() == ".eps":
+                    args.append("-dEPSCrop")
+                args.append(str(cand))
+                subprocess.run(args, check=False, capture_output=True)
             if png.exists():
                 return send_file(png)
     return "", 404
