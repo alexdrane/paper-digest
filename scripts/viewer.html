@@ -186,6 +186,8 @@ ul,ol{margin:0 0 1.15rem;padding-left:1.3rem} li{margin-bottom:.35rem}
 
 @keyframes flash{0%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:var(--shadow)}}
 .card.new{animation:flash 1.4s ease-out}
+@keyframes docswap{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:none}}
+#doc.switching{animation:docswap .4s ease-out}
 .card.summary{margin:.2rem 0 1.4rem}
 .sec.folded>.card{margin-bottom:1.6rem}
 .secrail button.has{border-color:var(--accent);color:var(--accent)}
@@ -419,6 +421,7 @@ function toggleTheme(){
 
 let CURRENT='';
 function renderPaperDoc(p){
+  const isSwitch = CURRENT && CURRENT!==p.arxiv_id;
   PAPER=p; CURRENT=p.arxiv_id;
   document.title=p.title;
   setSaveBtn(!!p.saved);
@@ -447,6 +450,10 @@ function renderPaperDoc(p){
       <div class="abstract"><b>Abstract</b>${p.abstract}</div>`
     +p.blocks.map(b=>`<div class="blk" data-id="${b.id}" data-sec="${esc(b.section)}">${b.html}</div>`).join('');
   $('stat').textContent=`${p.blocks.length} blocks`;
+  if(isSwitch){
+    $('paper').scrollTo({top:0,behavior:'smooth'});
+    const d=$('doc'); d.classList.remove('switching'); void d.offsetWidth; d.classList.add('switching');
+  }
   wrapFigures();
   MathJax.typesetPromise().then(()=>{buildSections();buildTOC();decorateHeadings();loadState();});
   document.querySelectorAll('.cite').forEach(c=>{
