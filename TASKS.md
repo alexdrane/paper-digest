@@ -78,7 +78,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   view — could be a toggleable panel rather than a permanent UI element, given
   it's not needed every session).
 
-- [ ] status: claimed | claimed: alex-drane-21 | **Switching papers doesn't scroll to top or give any indication of the change.**
+- [x] Paper switch scrolls to top + fade transition. Done by alex-drane-21. **Switching papers doesn't scroll to top or give any indication of the change.**
   `switchPaper`/`renderPaperDoc` swap `#doc`'s content in place — if you were
   scrolled halfway down the old paper, you land at the same scroll offset in
   the new one (often mid-paragraph, disorienting), and there's no visual cue
@@ -90,7 +90,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   reads as an event, not a silent content swap.
   Files: `scripts/viewer.html` (`renderPaperDoc`/`switchPaper`).
 
-- [ ] status: claimed | claimed: alex-drane-75 | **Bug: LIB/FIGDIRS/WORKDIRS reset on every server restart.**
+- [x] LIB/FIGDIRS/WORKDIRS now persist across restarts. Done by alex-drane-75.
   Same root cause behind two separate user-visible symptoms: (1) the
   paper-switcher dropdown only ever shows the paper the process launched on
   after any restart — every paper opened via a citation click is gone from
