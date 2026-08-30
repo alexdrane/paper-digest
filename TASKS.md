@@ -24,6 +24,28 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: open | claimed: — | **Cache-hit check doesn't notice figures are missing.**
+  Found and fixed live for one paper (arXiv:2602.22307 — real bug, confirmed:
+  its tarball genuinely contains 8 figure PDFs at full size, but its cached
+  `figures/` dir had zero files; `arxiv.py fetch --refresh` fixed it
+  immediately, and re-running `fetch_source_text` in isolation just now
+  extracted all 8 cleanly, so the extraction code itself is fine - this paper
+  was almost certainly fetched early in this project, before figure
+  extraction existed at all, and the cache has been silently stale since).
+  The actual gap: `cmd_fetch`'s cache-hit check only looks at whether
+  `meta.json`/`fulltext.txt` exist, never whether `figures/` is consistent
+  with what the cached `fulltext.txt` actually references via
+  `\includegraphics`. So any paper fetched by an older code version, or one
+  whose figure extraction silently failed for any reason, stays broken
+  forever with no signal beyond a reader noticing "figure failed to render"
+  by eye - swept the rest of the cache manually this session and only found
+  the one instance, but that was luck, not a guarantee.
+  Fix: in `cmd_fetch`, when serving a cache hit, cheaply check whether any
+  `\includegraphics` reference in the cached `fulltext.txt` has no
+  corresponding file (by basename) in `figures/` - if so, treat it like
+  `--refresh` for that paper rather than serving the stale cache silently.
+  Files: `scripts/arxiv.py` (`cmd_fetch`).
+
 - [ ] status: open | claimed: — | **Citation resolution: real misses, and a silent-wrong-match risk.**
   Ran a real batch test against arXiv:2602.11264's bibliography (10 citations):
   9/10 resolved correctly at 0.98-1.0 confidence. Two distinct problems in the
