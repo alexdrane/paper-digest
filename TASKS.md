@@ -24,6 +24,19 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: open | claimed: — | **Title extraction can capture a `\thanks`/footnote inside `\title{}`.**
+  arXiv:0803.4015 (an old COSMOGRAIL paper) renders its title as the telescope
+  acknowledgment credits ("Based on observations obtained with the 1.2m EULER
+  Swiss Telescope...") instead of the actual paper title — its `\title{}`
+  macro has a `\thanks{}`/footnote embedded that `grab("title")` in
+  `texhtml.py`'s `render()` isn't stripping before extracting the title text.
+  Reproduce: `python3 scripts/arxiv.py fetch 0803.4015 --refresh` then check
+  `title` in the output, or open it in the reader.
+  Fix: strip `\thanks{...}`/`\footnote{...}` (balanced-brace, like
+  `remove_cmd` already does for front-matter commands) from the raw title text
+  before running it through `inline()`.
+  Files: `scripts/texhtml.py` (`render`, the `grab("title")` path).
+
 - [ ] status: open | claimed: — | **"Why was this cited?" — contextual summary when a citation is opened.**
   Clicking a citation and opening the cited paper currently drops you into a
   generic full render with no framing. The actual reason someone clicks a
