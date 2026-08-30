@@ -24,6 +24,23 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: open | claimed: — | **Word-wrapped prose in an answer renders as one line per wrap.**
+  `md()` calls `marked.parse(text,{breaks:true})`, which turns every single
+  `\n` into a `<br>`. That's fine for genuinely short lines, but any answer
+  authored with mid-paragraph line wrapping (very easy to do by hand when
+  writing a `bridge.py reply` file at a fixed column width) renders as one
+  choppy line per wrap instead of a flowing paragraph — happened with a real
+  answer in this session, looked broken though the content was fine.
+  Two independent fixes, ideally both: (1) in `md()`, collapse single
+  newlines that aren't inside a list/code block into spaces before parsing
+  (a paragraph is separated by a *blank* line, not fixed manually) so the
+  renderer is robust to how the text was authored; (2) add a line to
+  `SKILL.md`'s answering guidance telling an answering session not to
+  hard-wrap prose in an answer — one paragraph, one line, let the browser wrap
+  it. Do (1) regardless, since (2) alone doesn't fix content already written
+  wrong or a future session that forgets.
+  Files: `scripts/viewer.html` (`md()`), `SKILL.md`.
+
 - [ ] status: open | claimed: — | **Bug: a lost answer can never be recovered, even by refreshing.**
   `addCard()` calls `saveState()` immediately on creation, while the card still
   says "queued for your Claude window" and `el.dataset.raw` is empty — so an
