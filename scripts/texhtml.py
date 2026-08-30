@@ -73,6 +73,22 @@ def env_end(s: str, start: int, env: str) -> int:
     return len(s)
 
 
+def mathjax_safe(body: str) -> str:
+    r"""Strip text-mode-only control sequences from a \newcommand body.
+
+    A macro like \days -> \ensuremath{\mathrm{days}}\xspace is used in both text
+    and maths. In text it flows through inline(), which drops leftover commands
+    fine. In maths it is never expanded here (protect_math stashes the whole
+    $...$ first) - MathJax expands it later from the macro table, and MathJax
+    knows neither \ensuremath nor \xspace, so it renders them as literal text.
+    Turn \ensuremath{X} into a plain {X} group and drop \xspace before the body
+    reaches the table.
+    """
+    body = re.sub(r"\\ensuremath\s*(?=\{)", "", body)
+    body = re.sub(r"\\xspace\b", "", body)
+    return body
+
+
 def extract_macros(preamble: str) -> dict:
     """\\newcommand definitions -> MathJax macro table."""
     macros: dict[str, object] = {}
@@ -80,6 +96,7 @@ def extract_macros(preamble: str) -> dict:
                          r"\s*(?:\[(\d+)\])?\s*(?:\[[^\]]*\])?\s*\{", preamble):
         name, nargs = m.group(1), m.group(2)
         body, _ = braced(preamble, preamble.index("{", m.end() - 1))
+        body = mathjax_safe(body)
         macros[name] = [body, int(nargs)] if nargs else body
     return macros
 
@@ -240,6 +257,7 @@ def inline(text: str) -> str:
     text = protect_math(text, store)
     text = expand_macros(text, TEXT_MACROS)
     text = protect_math(text, store)   # macro bodies may themselves contain maths
+    text = re.sub(r"\\ensuremath\s*(?=\{)", "", text)   # \ensuremath{X} -> {X}
     text = re.sub(r"\\(?:label|index|vspace|hspace|noindent|centering|small|footnotesize)"
                   r"\s*\*?(?:\{[^{}]*\})?", "", text)
     text = html.escape(text, quote=False)
