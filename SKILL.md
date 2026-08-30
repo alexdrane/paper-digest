@@ -74,6 +74,22 @@ passage and the works cited in it. Answer against the whole paper, not just the
 passage; that context is the reason this path exists rather than a chatbot in
 the page.
 
+**Ground your claims in the paper.** When an answer, summary, quiz explanation or
+grade makes a claim that rests on a specific passage, cite the block it comes
+from with an inline `[[bNN]]` marker (e.g. "the mean can absorb any kernel
+signal [[b41]]"). The window post-processes it in `md()` into a small `src` chip
+whose hover shows that block's source text and whose click scrolls the paper to
+it. Find the id with:
+
+```bash
+python3 $B blocks <arxiv_id> [term]   # id | section | raw[:100], optionally grepped
+```
+
+Cite blocks you actually used; two or three per answer is usually right. Don't
+cite the front matter or a heading block, and don't turn every sentence into a
+chip. `[[bNN]]` is for paper blocks only — bibliography references still render
+through the paper's own `\cite` numbers.
+
 Three kinds arrive:
 
 - `question` — a passage and their question. Answer it directly, in Markdown;

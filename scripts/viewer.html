@@ -135,6 +135,14 @@ tbody tr:last-child td{border-bottom:1.5px solid var(--ink)}
 
 .cite{color:var(--accent);cursor:help;font:400 .78em 'JetBrains Mono',monospace;
       padding:.05em .2em;border-radius:3px;white-space:nowrap;background:var(--accent-soft)}
+.srcref{color:var(--dim);cursor:pointer;font:400 .7em 'JetBrains Mono',monospace;
+        padding:.05em .3em;margin:0 .12em;border-radius:3px;white-space:nowrap;
+        border:1px solid var(--rule);vertical-align:.15em;text-transform:uppercase;
+        letter-spacing:.04em}
+.srcref:hover{border-color:var(--accent);color:var(--accent)}
+.srcref.missing{color:var(--faint);border-style:dashed;cursor:not-allowed}
+@keyframes srcflash{from{background:var(--mark)}to{background:transparent}}
+.blk.srcflash{animation:srcflash 1.6s ease-out;border-radius:4px}
 a.xref{color:var(--accent);text-decoration:none;font-family:'JetBrains Mono',monospace;font-size:.88em}
 a.xref:hover{text-decoration:underline}
 .xref{color:var(--faint);font-family:'JetBrains Mono',monospace;font-size:.88em}
@@ -592,9 +600,43 @@ function md(text){
   const keep=[];
   const stash=s=>s.replace(/\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\$[^$\n]+?\$|\\\([\s\S]*?\\\)/g,
                            m=>{keep.push(m);return `@@M${keep.length-1}@@`;});
-  let out=marked.parse(stash(text),{breaks:true});
-  return out.replace(/@@M(\d+)@@/g,(_,i)=>keep[+i]);
+  const refs=[];
+  let staged=stash(text).replace(/\[\[(b\d+)\]\]/g,(_,id)=>{refs.push(id);return `@@S${refs.length-1}@@`;});
+  let out=marked.parse(staged,{breaks:true});
+  out=out.replace(/@@M(\d+)@@/g,(_,i)=>keep[+i]);
+  out=out.replace(/@@S(\d+)@@/g,(_,i)=>sourceRefChip(refs[+i]));
+  return out;
 }
+
+/* ---- [[bNN]] source-citation markers in Claude's answers ----
+   An answering session grounds a claim by writing [[b12]], the id of the paper
+   block it came from (find ids with `bridge.py blocks <id> [term]`). We turn it
+   into a hoverable/clickable chip: the tooltip is that block's source text, a
+   click scrolls the paper to it. Distinct from `.cite` (which points at bib
+   keys and opens the arXiv popover) - this points at PAPER.blocks. */
+function blockSourceText(b){
+  if(!b) return '';
+  const t=(b.raw||'').trim() || String(b.html||'').replace(/<[^>]+>/g,' ');
+  return t.replace(/\s+/g,' ').trim();
+}
+function sourceRefChip(id){
+  const b=(PAPER.blocks||[]).find(x=>x.id===id);
+  if(!b) return `<span class="srcref missing" title="no block ${esc(id)} in this paper">${esc(id)}</span>`;
+  let src=blockSourceText(b);
+  if(src.length>400) src=src.slice(0,400)+'…';
+  const sec=b.section&&b.section!=='(front matter)'?b.section+' — ':'';
+  return `<span class="srcref" data-bid="${esc(id)}" title="${esc(sec+src)}">src</span>`;
+}
+document.addEventListener('click',e=>{
+  const r=e.target.closest?.('.srcref[data-bid]'); if(!r) return;
+  e.preventDefault(); e.stopPropagation();
+  const blk=document.querySelector(`.blk[data-id="${CSS.escape(r.dataset.bid)}"]`);
+  if(!blk){toast(`block ${r.dataset.bid} is not in the rendered paper`);return;}
+  const sec=blk.closest('.sec');
+  if(sec&&sec.classList.contains('folded')) sec.querySelector('.secrail .fd')?.click();
+  blk.scrollIntoView({behavior:'smooth',block:'center'});
+  blk.classList.remove('srcflash'); void blk.offsetWidth; blk.classList.add('srcflash');
+});
 
 /* ---- ask ---- */
 function send(){

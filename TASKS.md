@@ -24,7 +24,7 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
-- [ ] status: claimed | claimed: alex-drane-75 | **Hover-source citations in answers.**
+- [x] status: done | claimed: alex-drane-75 | **Hover-source citations in answers.**
   Claude's markdown answers (questions/summaries/grades) should ground claims
   in the paper: define an inline marker like `[[bNN]]` referencing a block id,
   post-process it in `md()` into a hoverable/clickable span whose tooltip
