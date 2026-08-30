@@ -32,6 +32,7 @@ import texhtml  # noqa: E402
 CACHE = Path.home() / ".local/share/paper-digest/cache"
 BRIDGE = Path.home() / ".local/share/paper-digest/bridge"
 SAVED = Path.home() / ".local/share/paper-digest/saved.json"
+OPEN_PAPERS = Path.home() / ".local/share/paper-digest/open_papers.json"
 app = Flask(__name__)
 
 LIB: dict[str, dict] = {}       # arxiv_id -> rendered doc
@@ -63,6 +64,7 @@ def load(aid: str) -> dict:
     LIB[doc["arxiv_id"]] = doc
     FIGDIRS[doc["arxiv_id"]] = d / "figures"
     WORKDIRS[doc["arxiv_id"]] = d
+    remember_open(doc["arxiv_id"])
     return doc
 
 
@@ -104,6 +106,43 @@ def known_title(aid: str) -> str:
         except json.JSONDecodeError:
             pass
     return ""
+
+
+# -------------------------------------------------------------------- open papers
+# LIB / FIGDIRS / WORKDIRS are process-local, so after a restart the server has
+# forgotten every paper opened via a citation click - the switcher dropdown
+# loses them and, worse, /figure 404s for them (FIGDIRS.get miss) even though
+# the cache on disk is intact. Persist the id list and rehydrate on startup;
+# load() is cheap when fulltext.txt is already cached.
+
+def load_open_ids() -> list[str]:
+    try:
+        data = json.loads(OPEN_PAPERS.read_text())
+        return [x for x in data if isinstance(x, str)] if isinstance(data, list) else []
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def remember_open(aid: str) -> None:
+    ids = load_open_ids()
+    if aid in ids:
+        return
+    ids.append(aid)
+    OPEN_PAPERS.parent.mkdir(parents=True, exist_ok=True)
+    OPEN_PAPERS.write_text(json.dumps(ids, indent=2))
+
+
+def restore_open() -> None:
+    """Re-register every previously-opened paper before the server starts."""
+    for aid in load_open_ids():
+        if aid in LIB:
+            continue
+        if not (CACHE / aid.replace("/", "_") / "fulltext.txt").exists():
+            continue  # cache gone - don't trigger a network re-fetch on startup
+        try:
+            load(aid)
+        except Exception as exc:  # a stale/corrupt cache entry shouldn't block startup
+            print(f"  could not restore {aid}: {exc}")
 
 
 # ------------------------------------------------------------------------- bridge
@@ -409,6 +448,9 @@ if __name__ == "__main__":
     START_ID = doc["arxiv_id"]
     print(f"{doc['title']} - {len(doc['blocks'])} blocks, "
           f"{len(doc['bib'])} refs, source={doc['source']}")
+    restore_open()
+    if len(LIB) > 1:
+        print(f"restored {len(LIB) - 1} other paper(s) opened earlier")
     port = free_port()
     threading.Timer(1.0, lambda: webbrowser.open(f"http://127.0.0.1:{port}/")).start()
     app.run(port=port, threaded=True)
