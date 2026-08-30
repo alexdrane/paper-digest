@@ -456,7 +456,14 @@ function renderPaperDoc(p){
     const d=$('doc'); d.classList.remove('switching'); void d.offsetWidth; d.classList.add('switching');
   }
   wrapFigures();
-  MathJax.typesetPromise().then(()=>{buildSections();buildTOC();decorateHeadings();loadState();});
+  // Full re-typeset of #doc. MathJax keeps its typeset-root list and (with
+  // tags:'ams') an \label registry across typesetPromise() calls, so switching
+  // away from a paper and back makes every \label read as "multiply defined"
+  // and its \eqref render as ??. Drop the stale roots and reset the label /
+  // equation-number state before typesetting the fresh document.
+  if(typeof MathJax.typesetClear==='function') MathJax.typesetClear([$('doc')]);
+  if(typeof MathJax.texReset==='function') MathJax.texReset();
+  MathJax.typesetPromise([$('doc')]).then(()=>{buildSections();buildTOC();decorateHeadings();loadState();});
   document.querySelectorAll('.cite').forEach(c=>{
     c.title=c.dataset.keys.split(',').map(k=>PAPER.bib[k]||k).join('\n\n');
     c.onclick=e=>{e.stopPropagation();openCitePopover(e,c);};
