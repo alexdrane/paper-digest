@@ -329,7 +329,8 @@ def render_tabular(body: str) -> str | None:
     return f'<table>{head}<tbody>{body_html}</tbody></table>'
 
 
-def render_float(env: str, body: str, figdir: str | None) -> dict:  # noqa: keep body as .raw at call site
+def render_float(env: str, body: str, figdir: str | None,
+                 arxiv_id: str | None = None) -> dict:  # noqa: keep body as .raw at call site
     cap = ""
     m = re.search(r"\\caption\s*\{", body)
     if m:
@@ -344,8 +345,11 @@ def render_float(env: str, body: str, figdir: str | None) -> dict:  # noqa: keep
                 "html": f'<figure class="tbl{wide}"><figcaption>{cap}</figcaption>{content}</figure>'}
 
     if imgs and figdir:
+        # /figure resolves the folder from ?id=; without it the server falls
+        # back to the launch paper and every other paper's figures 404.
+        q = f"?id={html.escape(arxiv_id, quote=True)}" if arxiv_id else ""
         tags = ('<div class="panels">'
-                + "".join(f'<img src="/figure/{html.escape(i, quote=True)}" alt="{html.escape(i)}">'
+                + "".join(f'<img src="/figure/{html.escape(i, quote=True)}{q}" alt="{html.escape(i)}">'
                           for i in imgs) + "</div>")
     else:
         tags = '<div class="placeholder">[figure not rendered]</div>'
@@ -370,7 +374,8 @@ def paragraphs(text: str) -> list[dict]:
 
 
 
-def parse_body(body: str, figdir: str | None) -> tuple[list[dict], dict]:
+def parse_body(body: str, figdir: str | None,
+               arxiv_id: str | None = None) -> tuple[list[dict], dict]:
     """Blocks plus a {label: (number, anchor)} table for cross-references."""
     blocks: list[dict] = []
     path: list[str] = []
@@ -426,7 +431,7 @@ def parse_body(body: str, figdir: str | None) -> tuple[list[dict], dict]:
             end = env_end(body, m.start(), env)
             inner = body[m.end(): end - len(f"\\end{{{env}}}")]
             if re.fullmatch(FLOAT_ENVS, env):
-                add([render_float(env, inner, figdir)])
+                add([render_float(env, inner, figdir, arxiv_id)])
             elif re.fullmatch(LIST_ENVS, env):
                 add([render_list(env, inner)])
             else:
@@ -499,7 +504,7 @@ def resolve_refs(blocks: list[dict], labels: dict, bib: dict) -> None:
 
 # -------------------------------------------------------------------------- driver
 
-def render(tex: str, figdir: str | None = None) -> dict:
+def render(tex: str, figdir: str | None = None, arxiv_id: str | None = None) -> dict:
     bib_split = re.split(r"% ---- bibliography \(\.bbl\) ----", tex)
     bib, bib_titles = parse_bbl(bib_split[1]) if len(bib_split) > 1 else ({}, {})
     tex = bib_split[0]
@@ -538,7 +543,7 @@ def render(tex: str, figdir: str | None = None) -> dict:
         body = remove_cmd(body, cmd)
     body = re.sub(r"\\(?:maketitle|tableofcontents)\b", "", body)
 
-    blocks, labels = parse_body(body, figdir)
+    blocks, labels = parse_body(body, figdir, arxiv_id)
     resolve_refs(blocks, labels, bib)
     return {"title": title, "authors": authors, "abstract": abstract,
             "macros": extract_macros(preamble), "bib": bib, "bib_titles": bib_titles,
