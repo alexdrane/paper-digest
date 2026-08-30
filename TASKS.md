@@ -24,7 +24,7 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
-- [ ] status: open | claimed: — | **UI polish: long titles, figure loading state.**
+- [ ] status: claimed | claimed: alex-drane-75 | **UI polish: long titles, figure loading state.**
   Two reported issues: (1) long paper/section titles render unbounded and look
   bad — the `#paperSelect` dropdown options show the full title (native
   `<select>` doesn't support CSS ellipsis, so truncate the string itself, e.g.
