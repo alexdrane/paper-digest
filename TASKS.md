@@ -24,7 +24,7 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
-- [ ] status: open | claimed: — | **`\ensuremath{...}` inside a macro expansion renders as literal text.**
+- [ ] status: claimed | claimed: alex-drane-75 | **`\ensuremath{...}` inside a macro expansion renders as literal text.**
   Reproduce: arXiv:2602.22307 defines `\newcommand{\days}{\ensuremath{\mathrm{days}}\xspace}`
   and uses `\days` in body text (e.g. "10 \days"). Rendered output shows the
   literal text `\ensuremath`, `days`, `\xspace` instead of just "days" — see
@@ -40,7 +40,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   `SIMPLE` either and is likely part of the same failure.
   Files: `scripts/texhtml.py` (`inline`, `SIMPLE`, `expand_macros`).
 
-- [ ] status: open | claimed: — | **MathJax "Label ... multiply defined" for a label that's only defined once in source.**
+- [ ] status: claimed | claimed: alex-drane-21 | **MathJax "Label ... multiply defined" for a label that's only defined once in source.**
   Reproduce: arXiv:2602.22307, the "regularised log-likelihood" equation.
   Confirmed in the cached `fulltext.txt` — `\label{eqn:regularised-log-likelihood}`
   appears exactly **once** as a definition (one `\ref` elsewhere referencing
