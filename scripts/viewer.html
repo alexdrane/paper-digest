@@ -121,6 +121,12 @@ figure.wide{margin-left:-5.5rem;margin-right:-5.5rem}
 .panels{display:flex;flex-wrap:wrap;gap:.7rem;justify-content:center;align-items:flex-start}
 .panels img{flex:1 1 340px;max-width:100%;border:1px solid var(--line);border-radius:5px;
             background:#fff;box-shadow:var(--shadow)}
+.panels .figwrap{flex:1 1 340px;position:relative;display:flex}
+.panels .figwrap img{flex:1 1 auto;width:100%}
+.figspin{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+         background:var(--card);border:1px solid var(--line);border-radius:5px}
+.figspin .spin{width:16px;height:16px;margin:0}
+.figfail{font:400 11px 'JetBrains Mono',monospace;color:var(--faint)}
 figcaption{font:400 13.5px/1.55 Inter,sans-serif;color:var(--dim);text-align:left;margin-top:.85rem}
 figure.tbl figcaption{margin:0 0 .85rem}
 .placeholder{color:var(--faint);font:400 12px 'JetBrains Mono',monospace;
@@ -187,8 +193,9 @@ ul,ol{margin:0 0 1.15rem;padding-left:1.3rem} li{margin-bottom:.35rem}
       box-shadow:var(--shadow);margin:1rem 0;overflow:hidden}
 .card>h6{margin:0;padding:.55rem .9rem;background:var(--accent-soft);color:var(--accent);
          font:600 9.5px Inter,sans-serif;letter-spacing:.14em;text-transform:uppercase;
-         display:flex;justify-content:space-between;align-items:center}
-.card>h6 button{background:none;border:0;color:var(--accent);cursor:pointer;
+         display:flex;justify-content:space-between;align-items:center;gap:.6rem}
+.card>h6 .ct{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.card>h6 button{flex:0 0 auto;background:none;border:0;color:var(--accent);cursor:pointer;
                 font:500 10px Inter,sans-serif;opacity:.75}
 .card>h6 button:hover{opacity:1}
 .cardbody{padding:.9rem 1.1rem;font:400 14.5px/1.62 Inter,sans-serif}
@@ -432,6 +439,7 @@ function renderPaperDoc(p){
       <div class="abstract"><b>Abstract</b>${p.abstract}</div>`
     +p.blocks.map(b=>`<div class="blk" data-id="${b.id}" data-sec="${esc(b.section)}">${b.html}</div>`).join('');
   $('stat').textContent=`${p.blocks.length} blocks`;
+  wrapFigures();
   MathJax.typesetPromise().then(()=>{buildSections();buildTOC();decorateHeadings();loadState();});
   document.querySelectorAll('.cite').forEach(c=>{
     c.title=c.dataset.keys.split(',').map(k=>PAPER.bib[k]||k).join('\n\n');
@@ -439,6 +447,27 @@ function renderPaperDoc(p){
   });
   refreshLibrary();
 }
+/* First view of a PDF/EPS/PS figure runs an on-demand server-side conversion
+   (pdftoppm/ghostscript) that can take a second or two - show a spinner over
+   each figure until its <img> load/error fires. */
+function wrapFigures(){
+  $('doc').querySelectorAll('.panels img').forEach(img=>{
+    if(img.closest('.figwrap')) return;
+    const w=document.createElement('span');
+    w.className='figwrap';
+    img.replaceWith(w); w.appendChild(img);
+    if(img.complete && img.naturalWidth>0) return;
+    const s=document.createElement('span');
+    s.className='figspin'; s.innerHTML='<span class="spin"></span>';
+    w.appendChild(s);
+    img.addEventListener('load',()=>s.remove(),{once:true});
+    img.addEventListener('error',()=>{s.innerHTML='<span class="figfail">figure failed to render</span>';},{once:true});
+  });
+}
+
+/* Native <select> options can't ellipsis via CSS - truncate the string. */
+function trunc(s,n){s=String(s||'');return s.length>n?s.slice(0,n-1).trimEnd()+'…':s;}
+
 fetch('/paper').then(r=>r.json()).then(renderPaperDoc);
 
 /* ---- multiple papers open at once ---- */
@@ -446,7 +475,7 @@ function refreshLibrary(){
   fetch('/library').then(r=>r.json()).then(({papers})=>{
     const sel=$('paperSelect');
     sel.innerHTML=papers.map(p=>
-      `<option value="${p.id}"${p.id===CURRENT?' selected':''}>${esc(p.title||p.id)}</option>`).join('');
+      `<option value="${p.id}"${p.id===CURRENT?' selected':''}>${esc(trunc(p.title||p.id,52))}</option>`).join('');
     sel.style.display=papers.length>1?'block':'none';
   });
 }
@@ -842,7 +871,8 @@ document.addEventListener('click',()=>{$('menu').style.display='none';});
 function cardShell(kind,title){
   const el=document.createElement('div');
   el.className='card '+kind; el.dataset.kind=kind;
-  el.innerHTML=`<h6>${title}<button class="rm">remove</button></h6><div class="cardbody"></div>`;
+  el.innerHTML=`<h6><span class="ct" title="${esc(title)}">${esc(title)}</span>`
+              +`<button class="rm">remove</button></h6><div class="cardbody"></div>`;
   el.querySelector('.rm').onclick=()=>{el.remove();saveState();syncTOC();};
   return el;
 }
