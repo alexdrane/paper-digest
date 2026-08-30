@@ -24,6 +24,60 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: open | claimed: — | **"Why was this cited?" — contextual summary when a citation is opened.**
+  Clicking a citation and opening the cited paper currently drops you into a
+  generic full render with no framing. The actual reason someone clicks a
+  citation is usually narrower: is this foundational, a data source, a
+  competing method, or (often) just borrowing one piece of methodology from
+  an otherwise-irrelevant paper? The answer should say which, and if it's the
+  methodology case, point at the *specific section* responsible rather than
+  summarising the whole cited paper.
+  - When a citation is opened (the "Open arXiv:X in reader →" flow in the
+    popover — `openCitePopover`/`/open` in `scripts/viewer.py`), also capture
+    what's already computed client-side but currently unused past that click:
+    the citing paper's id, the section the citation appeared in, and the
+    passage/selection around the `.cite` span (same data `openCitePopover`
+    already has for `/resolve`).
+  - Enqueue a bridge request, new `kind: "citation-context"`, carrying: the
+    newly-opened (cited) paper's id/title/abstract, and the citing paper's
+    id/title/section/passage. The answering session reads the cited paper
+    (already fetched — full text is on disk) and writes a short answer:
+    what's actually being cited for, and — this is the part worth building
+    well — reference the *specific block(s)* of the newly-opened paper with
+    `[[bNN]]` (the hover-source marker mechanism already exists and already
+    resolves against whatever paper is currently displayed) rather than a
+    generic abstract restatement. `bridge.py blocks <id> [term]` is the tool
+    for finding the right block to cite here.
+  - Render this as a small persistent card at the top of the newly-opened
+    paper — right where the abstract box is — so it's the first thing visible
+    when the citation-driven paper opens, since "why did I click this" is the
+    question at that moment, before anything else.
+  Files: `scripts/viewer.html` (`openCitePopover`, `renderPaperDoc` for the
+  card placement), `scripts/viewer.py` (`/open` or a new route to enqueue the
+  request), `scripts/bridge.py`/`SKILL.md` (document the new request kind,
+  same pattern as `question`/`summary`/`quiz`/`grade`).
+
+- [ ] status: open | claimed: — | **Citation web/graph viewer.**
+  As citations get opened, build up an actual traversable graph — not just a
+  flat "papers I've opened" list. Depends on the durable open-paper tracking
+  from the LIB/FIGDIRS persistence task (currently in flight) for stable ids
+  across restarts — check that's landed, or coordinate, before starting.
+  - Persist a citation-edge list alongside that: `{from: citing_id, to:
+    cited_id, section, keys, opened_at}` per citation-driven open (distinct
+    from `saved.json`'s `via`, which is a single provenance field, not a full
+    edge list — this needs to support a paper citing multiple others, and
+    being cited by multiple citing papers, i.e. a real graph, not a tree).
+  - A `GET /citation-graph` route returning nodes (papers, from the persisted
+    open-paper list + cache metadata) and edges.
+  - A viewer for it — doesn't need to be a heavy force-directed graph library;
+    a clean nested/list-based view (grouped by "cited by") is a legitimate,
+    simpler choice if it reads well. Functional requirement over visual one:
+    click a node to jump to/open that paper, see at a glance which paper led
+    you to which via which citation.
+  Files: `scripts/viewer.py` (persistence + route), `scripts/viewer.html` (the
+  view — could be a toggleable panel rather than a permanent UI element, given
+  it's not needed every session).
+
 - [ ] status: claimed | claimed: alex-drane-21 | **Switching papers doesn't scroll to top or give any indication of the change.**
   `switchPaper`/`renderPaperDoc` swap `#doc`'s content in place — if you were
   scrolled halfway down the old paper, you land at the same scroll offset in
