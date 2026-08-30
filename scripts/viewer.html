@@ -641,8 +641,34 @@ function showPending(){
 function dropSel(){sel={text:'',section:'',keys:[]};showPending();}
 function clearLog(){$('log').innerHTML='';}
 
+/* ---- unwrap hand-wrapped prose ----
+   marked runs with breaks:true, so every single \n becomes a <br>. An answer
+   written to a bridge reply file at a fixed column then renders as one choppy
+   line per wrap. Collapse single newlines back to spaces so a paragraph is
+   defined by a blank line, not by how the source happened to be wrapped -
+   while leaving list items, blockquotes, headings, tables, fenced/indented
+   code and explicit two-space hard breaks alone. */
+function unwrapProse(src){
+  const blocks=[];
+  let s=src.replace(/```[\s\S]*?```|~~~[\s\S]*?~~~/g,m=>{blocks.push(m);return `@@C${blocks.length-1}@@`;});
+  const lines=s.split('\n');
+  const structural=/^\s*(?:[-*+]\s|\d+[.)]\s|>|#{1,6}\s|\||@@C\d+@@)/;
+  const out=[];
+  for(let i=0;i<lines.length;i++){
+    out.push(lines[i]);
+    const nxt=lines[i+1];
+    if(nxt===undefined) break;
+    const join = lines[i].trim()!=='' && nxt.trim()!=='' &&
+      !structural.test(lines[i]) && !structural.test(nxt) &&
+      !/ {2}$/.test(lines[i]) && !/^\s{4,}/.test(nxt);
+    out.push(join?' ':'\n');
+  }
+  return out.join('').replace(/@@C(\d+)@@/g,(_,i)=>blocks[+i]);
+}
+
 /* ---- markdown with maths kept intact ---- */
 function md(text){
+  text=unwrapProse(text);
   const keep=[];
   const stash=s=>s.replace(/\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\$[^$\n]+?\$|\\\([\s\S]*?\\\)/g,
                            m=>{keep.push(m);return `@@M${keep.length-1}@@`;});
