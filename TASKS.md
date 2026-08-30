@@ -72,7 +72,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   `SIMPLE` either and is likely part of the same failure.
   Files: `scripts/texhtml.py` (`inline`, `SIMPLE`, `expand_macros`).
 
-- [ ] status: claimed | claimed: alex-drane-21 | **MathJax "Label ... multiply defined" for a label that's only defined once in source.**
+- [x] MathJax label/tag state reset on re-typeset. Done by alex-drane-21.
   Reproduce: arXiv:2602.22307, the "regularised log-likelihood" equation.
   Confirmed in the cached `fulltext.txt` — `\label{eqn:regularised-log-likelihood}`
   appears exactly **once** as a definition (one `\ref` elsewhere referencing
