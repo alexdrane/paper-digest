@@ -238,6 +238,15 @@ h2[data-collapsed='1']::after,h3[data-collapsed='1']::after{
 #lbhint{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);color:#bbb;
         font:500 12px Inter,sans-serif;z-index:101;display:none}
 .panels img{cursor:zoom-in}
+#flagbtn{position:absolute;z-index:40;display:none;background:#b3261e;color:#fff;
+         border:0;border-radius:7px;width:28px;height:28px;font:700 14px Inter,sans-serif;
+         cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.28)}
+#flagbtn:hover{filter:brightness(1.1)}
+#toast{position:fixed;bottom:1.1rem;left:50%;transform:translateX(-50%) translateY(8px);
+       z-index:80;background:var(--ink);color:var(--paper);border-radius:8px;
+       padding:.55rem 1rem;font:500 12.5px Inter,sans-serif;opacity:0;pointer-events:none;
+       transition:.2s;box-shadow:0 6px 24px rgba(0,0,0,.3)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 #askbtn{position:absolute;z-index:40;display:none;background:var(--accent);color:#fff;
         border:0;border-radius:7px;padding:.42rem .8rem;font:600 12px Inter,sans-serif;
         cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.28);white-space:nowrap}
@@ -313,6 +322,8 @@ h2[data-collapsed='1']::after,h3[data-collapsed='1']::after{
   <div id="paper"><div id="prog"></div><div class="wrap" id="doc">loading…</div></div>
 </div>
 <button id="askbtn" class="ui">Ask about this</button>
+<button id="flagbtn" class="ui" title="Flag broken rendering">!</button>
+<div id="toast" class="ui"></div>
 <div id="selbar" class="ui"><span id="selcount"></span>
   <button onclick="quizSelected()">Quiz these</button>
   <button onclick="summariseSelected()">Summarise</button>
@@ -449,10 +460,10 @@ $('paper').addEventListener('scroll',e=>{
 });
 
 /* ---- selection ---- */
-const btn=$('askbtn');
+const btn=$('askbtn'), flagbtn=$('flagbtn');
 $('paper').addEventListener('mouseup',()=>{
   const s=window.getSelection(), t=s.toString().trim();
-  if(t.length<3){btn.style.display='none';return;}
+  if(t.length<3){btn.style.display='none';flagbtn.style.display='none';return;}
   const r=s.getRangeAt(0), rect=r.getBoundingClientRect();
   let node=r.commonAncestorContainer;
   if(node.nodeType===3) node=node.parentElement;
@@ -460,12 +471,33 @@ $('paper').addEventListener('mouseup',()=>{
   if(blk) blk.querySelectorAll('.cite').forEach(c=>{
     if(r.intersectsNode(c)) keys.push(...c.dataset.keys.split(','));
   });
-  sel={text:t, section:blk?.dataset.sec||'', keys:[...new Set(keys)]};
+  sel={text:t, section:blk?.dataset.sec||'', keys:[...new Set(keys)], blockId:blk?.dataset.id||''};
   btn.style.display='block';
   btn.style.top=(rect.top-42)+'px';
   btn.style.left=Math.max(8,rect.left+rect.width/2-58)+'px';
+  flagbtn.style.display='block';
+  flagbtn.style.top=(rect.top-42)+'px';
+  flagbtn.style.left=(rect.left+rect.width/2+66)+'px';
 });
-document.addEventListener('mousedown',e=>{if(e.target!==btn)btn.style.display='none';});
+document.addEventListener('mousedown',e=>{
+  if(e.target!==btn) btn.style.display='none';
+  if(e.target!==flagbtn) flagbtn.style.display='none';
+});
+function toast(msg){
+  const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2600);
+}
+flagbtn.onclick=()=>{
+  flagbtn.style.display='none';
+  const note=prompt('What\'s broken about this? (optional \u2013 Cancel to skip the report)','');
+  if(note===null) return;
+  const block=(PAPER.blocks||[]).find(b=>b.id===sel.blockId);
+  fetch('/flag',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({section:sel.section, block_id:sel.blockId,
+      raw:block?.raw||'', html:block?.html||'', note})})
+   .then(r=>r.json()).then(({id})=>toast(`Flagged \u00b7 ${id} \u2014 saved for review`))
+   .catch(()=>toast('Could not save the flag'));
+};
 btn.onclick=()=>{btn.style.display='none';showPending();$('q').focus();};
 
 function showPending(){

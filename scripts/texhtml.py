@@ -305,7 +305,7 @@ def render_tabular(body: str) -> str | None:
     return f'<table>{head}<tbody>{body_html}</tbody></table>'
 
 
-def render_float(env: str, body: str, figdir: str | None) -> dict:
+def render_float(env: str, body: str, figdir: str | None) -> dict:  # noqa: keep body as .raw at call site
     cap = ""
     m = re.search(r"\\caption\s*\{", body)
     if m:
@@ -316,7 +316,7 @@ def render_float(env: str, body: str, figdir: str | None) -> dict:
     if env.startswith("table"):
         inner = render_tabular(body)
         content = inner or '<div class="placeholder">[table not rendered]</div>'
-        return {"type": "float",
+        return {"type": "float", "raw": body.strip(),
                 "html": f'<figure class="tbl{wide}"><figcaption>{cap}</figcaption>{content}</figure>'}
 
     if imgs and figdir:
@@ -325,7 +325,7 @@ def render_float(env: str, body: str, figdir: str | None) -> dict:
                           for i in imgs) + "</div>")
     else:
         tags = '<div class="placeholder">[figure not rendered]</div>'
-    return {"type": "float",
+    return {"type": "float", "raw": body.strip(),
             "html": f'<figure class="fig{wide}">{tags}<figcaption>{cap}</figcaption></figure>'}
 
 
@@ -333,7 +333,7 @@ def render_list(env: str, body: str) -> dict:
     items = [inline(x) for x in re.split(r"\\item\b", body)[1:]]
     tag = "ol" if env == "enumerate" else "ul"
     lis = "".join(f"<li>{i}</li>" for i in items if i)
-    return {"type": "list", "html": f"<{tag}>{lis}</{tag}>"}
+    return {"type": "list", "html": f"<{tag}>{lis}</{tag}>", "raw": body.strip()}
 
 
 def paragraphs(text: str) -> list[dict]:
@@ -341,7 +341,7 @@ def paragraphs(text: str) -> list[dict]:
     for chunk in re.split(r"\n\s*\n", text):
         h = inline(chunk)
         if h and re.search(r"\w", re.sub(r"<[^>]+>", "", h)):
-            out.append({"type": "para", "html": f"<p>{h}</p>"})
+            out.append({"type": "para", "html": f"<p>{h}</p>", "raw": chunk.strip()})
     return out
 
 
@@ -383,11 +383,11 @@ def parse_body(body: str, figdir: str | None) -> tuple[list[dict], dict]:
 
         if m.group("sec"):
             level = SECTION_LEVEL[m.group("sec")]
-            title, i = braced(body, m.end() - 1)
+            raw_title, i = braced(body, m.end() - 1)
             starred = body[m.start():m.end()].rstrip("{").rstrip().endswith("*")
             num = "" if starred else number(level)
             anchor = f"sec-{num or len(blocks)}"
-            title = inline(title)
+            title = inline(raw_title)
             path[:] = path[:level - 1] + [re.sub(r"<[^>]+>", "", title)]
             lab = re.match(r"\s*\\label\s*\{([^}]*)\}", body[i:])
             if lab:
@@ -395,7 +395,7 @@ def parse_body(body: str, figdir: str | None) -> tuple[list[dict], dict]:
                 i += lab.end()
             tag = f"h{min(level + 1, 6)}"
             pre = f'<span class="secnum">{num}</span>' if num else ""
-            add([{"type": "heading", "level": level, "title": title,
+            add([{"type": "heading", "level": level, "title": title, "raw": raw_title,
                   "html": f'<{tag} id="{anchor}">{pre}{title}</{tag}>'}])
         else:
             env = m.group("env")
@@ -420,7 +420,7 @@ def parse_body(body: str, figdir: str | None) -> tuple[list[dict], dict]:
                         for lb in re.findall(r"\\label\s*\{([^}]*)\}", row):
                             labels[lb.strip()] = (str(eq), f"eq-{eq}")
                 idattr = f' id="{anchor}"' if anchor else ""
-                add([{"type": "math",
+                add([{"type": "math", "raw": tex.strip(),
                       "html": f'<div class="eq"{idattr}>'
                               f'{html.escape(tex, quote=False)}</div>'}])
             i = end

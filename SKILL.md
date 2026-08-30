@@ -114,6 +114,13 @@ The page is the whole interface - there is no second surface.
 Rendering: numbered sections and equations, resolved `\ref` links, the paper's own
 citation numbers (hover for the entry), figures (click to zoom), booktabs tables.
 
+**Reporting broken rendering.** Selecting text also shows a red **!** button next
+to *Ask about this*. It saves the raw LaTeX for that block, the HTML it rendered
+to, the section, and an optional note - for fixing the renderer, not for
+answering. It does not go through the bridge and does not need you watching.
+Check `bridge.py flags [arxiv_id]` at the start of a session working on this
+skill's own code, and when the user asks what's broken.
+
 ## Digesting
 
 Read the full text — not just the abstract and conclusions. Then write a digest

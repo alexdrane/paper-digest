@@ -131,6 +131,26 @@ def cmd_wait(args) -> None:
         time.sleep(1.0)
 
 
+def cmd_flags(args) -> None:
+    """Broken-rendering reports filed from the reading window, newest first."""
+    root = Path.home() / ".local/share/paper-digest/cache"
+    rows = []
+    for d in root.glob("*/flags"):
+        rows += [json.loads(f.read_text()) for f in d.glob("*.json")]
+    rows.sort(key=lambda r: r.get("created", 0), reverse=True)
+    if args.arxiv_id:
+        rows = [r for r in rows if r.get("arxiv_id") == args.arxiv_id]
+    if not rows:
+        print("no flags")
+        return
+    for r in rows:
+        when = datetime.fromtimestamp(r["created"]).strftime("%Y-%m-%d %H:%M")
+        print(f"{r['id']}  {when}  {r.get('arxiv_id','?')}  [{r.get('section') or '-'}]")
+        if r.get("note"):
+            print(f"    note: {r['note']}")
+        print(f"    raw:  {r.get('raw','')[:140].replace(chr(10),' ')}")
+
+
 def cmd_log(args) -> None:
     """Everything that happened while reading, for picking the work back up."""
     d = Path.home() / ".local/share/paper-digest/cache" / args.arxiv_id.replace("/", "_")
@@ -163,6 +183,8 @@ def main() -> None:
     w = sub.add_parser("wait"); w.add_argument("--timeout", type=int, default=300)
     w.set_defaults(func=cmd_wait)
     g = sub.add_parser("log"); g.add_argument("arxiv_id"); g.set_defaults(func=cmd_log)
+    fl = sub.add_parser("flags"); fl.add_argument("arxiv_id", nargs="?")
+    fl.set_defaults(func=cmd_flags)
     a = ap.parse_args()
     a.func(a)
 

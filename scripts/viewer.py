@@ -113,6 +113,21 @@ def paper():
     return jsonify(PAPER)
 
 
+@app.post("/flag")
+def flag():
+    data = request.get_json(force=True)
+    d = WORKDIR / "flags"
+    d.mkdir(parents=True, exist_ok=True)
+    fid = uuid.uuid4().hex[:10]
+    (d / f"{fid}.json").write_text(json.dumps({
+        "id": fid, "arxiv_id": PAPER.get("arxiv_id"), "title": PAPER.get("title"),
+        "section": data.get("section", ""), "block_id": data.get("block_id", ""),
+        "raw": data.get("raw", ""), "html": data.get("html", ""),
+        "note": data.get("note", "").strip(), "created": time.time(),
+    }, indent=2))
+    return jsonify({"ok": True, "id": fid})
+
+
 @app.get("/figure/<path:name>")
 def figure(name: str):
     if FIGDIR is None:
