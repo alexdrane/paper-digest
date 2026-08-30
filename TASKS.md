@@ -56,7 +56,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   fix since it's a silent-failure mode, not a visible one.
   Files: `scripts/viewer.py` (`resolve_title`).
 
-- [ ] status: claimed | claimed: alex-drane-75 | **`\ensuremath{...}` inside a macro expansion renders as literal text.**
+- [x] `\ensuremath`/`\xspace` in macro bodies fixed. Done by alex-drane-75.
   Reproduce: arXiv:2602.22307 defines `\newcommand{\days}{\ensuremath{\mathrm{days}}\xspace}`
   and uses `\days` in body text (e.g. "10 \days"). Rendered output shows the
   literal text `\ensuremath`, `days`, `\xspace` instead of just "days" — see
