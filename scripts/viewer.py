@@ -5,10 +5,15 @@ Selecting text asks a question about that passage. The selection is sent with th
 section path it came from and the resolved bibliography entries for any citations
 inside it - context a PDF highlight cannot carry.
 
+Multiple papers can be open at once. Clicking a citation resolves it to an arXiv
+id by title search and opens it alongside the current paper; a dropdown in the
+sidebar switches between everything open in this session.
+
     python3 viewer.py 2602.11264
 """
 from __future__ import annotations
 
+import difflib
 import json
 import socket
 import subprocess
@@ -25,14 +30,17 @@ sys.path.insert(0, str(Path(__file__).parent))
 import texhtml  # noqa: E402
 
 CACHE = Path.home() / ".local/share/paper-digest/cache"
+BRIDGE = Path.home() / ".local/share/paper-digest/bridge"
 app = Flask(__name__)
 
-PAPER: dict = {}
-FIGDIR: Path | None = None
-WORKDIR: Path | None = None
+LIB: dict[str, dict] = {}       # arxiv_id -> rendered doc
+FIGDIRS: dict[str, Path] = {}   # arxiv_id -> figures/
+WORKDIRS: dict[str, Path] = {}  # arxiv_id -> cache dir (workspace.json, flags/)
+START_ID: str = ""              # the paper this process was launched on
 
 
 def load(aid: str) -> dict:
+    """Fetch (if needed), render, and register a paper in the library."""
     d = CACHE / aid.replace("/", "_")
     if not (d / "fulltext.txt").exists():
         script = Path(__file__).parent / "arxiv.py"
@@ -51,18 +59,21 @@ def load(aid: str) -> dict:
         doc["authors"] = meta["authors"]
     if not doc["abstract"]:
         doc["abstract"] = meta["abstract"]
-    globals()["FIGDIR"] = d / "figures"
-    globals()["WORKDIR"] = d
+    LIB[doc["arxiv_id"]] = doc
+    FIGDIRS[doc["arxiv_id"]] = d / "figures"
+    WORKDIRS[doc["arxiv_id"]] = d
     return doc
+
+
+def get_doc(explicit_id: str | None) -> dict | None:
+    aid = explicit_id or START_ID
+    return LIB.get(aid)
 
 
 # ------------------------------------------------------------------------- bridge
 
-BRIDGE = Path.home() / ".local/share/paper-digest/bridge"
-
-
-def enqueue(kind: str, question: str, selection: str, section: str, refs: dict,
-            sections: list | None = None) -> str:
+def enqueue(doc: dict, kind: str, question: str, selection: str, section: str,
+            refs: dict, sections: list | None = None) -> str:
     """Drop a request for the Claude window to pick up. No LLM is called here."""
     job = uuid.uuid4().hex
     (BRIDGE / "queue").mkdir(parents=True, exist_ok=True)
@@ -70,8 +81,7 @@ def enqueue(kind: str, question: str, selection: str, section: str, refs: dict,
     (BRIDGE / "queue" / f"{job}.json").write_text(json.dumps({
         "job": job, "kind": kind, "question": question, "selection": selection,
         "section": section, "sections": sections or [], "refs": refs,
-        "arxiv_id": PAPER["arxiv_id"],
-        "title": PAPER["title"], "text_path": PAPER["text_path"],
+        "arxiv_id": doc["arxiv_id"], "title": doc["title"], "text_path": doc["text_path"],
         "created": time.time(),
     }, indent=2))
     return job
@@ -101,6 +111,43 @@ def await_answer(job: str, timeout: float = 1800.0):
     yield "event: done\ndata: {}\n\n"
 
 
+# ---------------------------------------------------------------- citation resolve
+
+def resolve_title(title: str) -> dict | None:
+    """Search arXiv for a citation's title; accept only a confident match.
+
+    Citations are frequently books, websites, or pre-arXiv papers with no arXiv
+    id at all - returning nothing for those is the correct, common outcome.
+    """
+    title = title.strip()
+    if len(title) < 8:
+        return None
+    script = Path(__file__).parent / "arxiv.py"
+    query = 'ti:"' + title.replace('"', "") + '"'
+    try:
+        out = subprocess.run([sys.executable, str(script), "search", query, "-n", "3"],
+                             capture_output=True, text=True, timeout=30, check=True).stdout
+        hits = json.loads(out)
+    except Exception:
+        hits = []
+    if not hits:
+        try:
+            out = subprocess.run([sys.executable, str(script), "search", title, "-n", "3"],
+                                 capture_output=True, text=True, timeout=30, check=True).stdout
+            hits = json.loads(out)
+        except Exception:
+            return None
+    best, score = None, 0.0
+    norm = lambda s: "".join(c.lower() for c in s if c.isalnum() or c.isspace()).split()
+    for h in hits:
+        r = difflib.SequenceMatcher(None, " ".join(norm(title)), " ".join(norm(h["title"]))).ratio()
+        if r > score:
+            best, score = h, r
+    if best and score >= 0.72:
+        return {"arxiv_id": best["id"], "title": best["title"], "confidence": round(score, 2)}
+    return None
+
+
 # ------------------------------------------------------------------------- routes
 
 @app.get("/")
@@ -110,17 +157,58 @@ def index():
 
 @app.get("/paper")
 def paper():
-    return jsonify(PAPER)
+    doc = get_doc(request.args.get("id"))
+    return (jsonify(doc), 200) if doc else (jsonify({"error": "not open"}), 404)
+
+
+@app.get("/library")
+def library():
+    return jsonify({"start": START_ID,
+                    "papers": [{"id": d["arxiv_id"], "title": d["title"]} for d in LIB.values()]})
+
+
+@app.post("/open")
+def open_paper():
+    aid = (request.get_json(force=True) or {}).get("id", "").strip()
+    if not aid:
+        return jsonify({"error": "missing id"}), 400
+    if aid not in LIB:
+        try:
+            load(aid)
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 502
+    return jsonify(LIB[aid])
+
+
+@app.post("/resolve")
+def resolve():
+    data = request.get_json(force=True)
+    doc = get_doc(data.get("from_id"))
+    if doc is None:
+        return jsonify({"error": "unknown source paper"}), 404
+    titles = doc.get("bib_titles", {})
+    out = {}
+    for key in data.get("keys", []):
+        t = titles.get(key, "")
+        out[key] = {"display": doc["bib"].get(key, key), "match": resolve_title(t) if t else None}
+    return jsonify(out)
 
 
 @app.post("/flag")
 def flag():
+    # Deliberately local-only: a browser click on someone else's machine should
+    # never silently invoke their authenticated `gh` to post public content on
+    # their behalf. Filing to GitHub, if wanted, is a separate opt-in step a
+    # person runs themselves - see bridge.py flags.
     data = request.get_json(force=True)
-    d = WORKDIR / "flags"
+    doc = get_doc(data.get("id"))
+    if doc is None:
+        return jsonify({"error": "unknown paper"}), 404
+    d = WORKDIRS[doc["arxiv_id"]] / "flags"
     d.mkdir(parents=True, exist_ok=True)
     fid = uuid.uuid4().hex[:10]
     (d / f"{fid}.json").write_text(json.dumps({
-        "id": fid, "arxiv_id": PAPER.get("arxiv_id"), "title": PAPER.get("title"),
+        "id": fid, "arxiv_id": doc["arxiv_id"], "title": doc["title"],
         "section": data.get("section", ""), "block_id": data.get("block_id", ""),
         "raw": data.get("raw", ""), "html": data.get("html", ""),
         "note": data.get("note", "").strip(), "created": time.time(),
@@ -130,9 +218,10 @@ def flag():
 
 @app.get("/figure/<path:name>")
 def figure(name: str):
-    if FIGDIR is None:
+    figdir = FIGDIRS.get(request.args.get("id") or START_ID)
+    if figdir is None:
         return "", 404
-    src = FIGDIR / Path(name).name
+    src = figdir / Path(name).name
     for cand in (src, src.with_suffix(".png"), src.with_suffix(".jpg"),
                  src.with_suffix(".pdf")):
         if cand.exists() and cand.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif"):
@@ -149,28 +238,41 @@ def figure(name: str):
 
 @app.get("/state")
 def get_state():
-    f = WORKDIR / "workspace.json"
+    doc = get_doc(request.args.get("id"))
+    if doc is None:
+        return jsonify({"inserts": [], "folded": []})
+    f = WORKDIRS[doc["arxiv_id"]] / "workspace.json"
     return jsonify(json.loads(f.read_text()) if f.exists() else {"inserts": [], "folded": []})
 
 
 @app.post("/state")
 def set_state():
-    (WORKDIR / "workspace.json").write_text(json.dumps(request.get_json(force=True), indent=2))
+    body = request.get_json(force=True)
+    doc = get_doc(body.get("id"))
+    if doc is None:
+        return jsonify({"ok": False, "reason": "unknown paper"}), 404
+    (WORKDIRS[doc["arxiv_id"]] / "workspace.json").write_text(json.dumps(body, indent=2))
     return jsonify({"ok": True})
 
 
 @app.post("/done")
 def done():
-    enqueue("end", "Reading session finished.", "", "", {})
+    doc = get_doc((request.get_json(force=True) or {}).get("id"))
+    if doc is None:
+        return jsonify({"ok": False}), 404
+    enqueue(doc, "end", "Reading session finished.", "", "", {})
     return jsonify({"ok": True})
 
 
 @app.post("/ask")
 def ask():
     data = request.get_json(force=True)
+    doc = get_doc(data.get("id"))
+    if doc is None:
+        return jsonify({"error": "unknown paper"}), 404
     keys = data.get("cite_keys") or []
-    refs = {k: PAPER["bib"][k] for k in keys if k in PAPER["bib"]}
-    job = enqueue(data.get("kind", "question"),
+    refs = {k: doc["bib"][k] for k in keys if k in doc["bib"]}
+    job = enqueue(doc, data.get("kind", "question"),
                   data.get("question", "").strip(),
                   data.get("selection", "").strip(),
                   data.get("section", ""), refs,
@@ -180,11 +282,13 @@ def ask():
 
 @app.get("/pending")
 def pending():
+    doc = get_doc(request.args.get("id"))
+    aid = doc["arxiv_id"] if doc else None
     items = []
-    for f in sorted((BRIDGE / "queue").glob("*.json"), key=lambda x: x.stat().st_mtime) \
-            if (BRIDGE / "queue").exists() else []:
+    qdir = BRIDGE / "queue"
+    for f in sorted(qdir.glob("*.json"), key=lambda x: x.stat().st_mtime) if qdir.exists() else []:
         r = json.loads(f.read_text())
-        if r.get("arxiv_id") != PAPER.get("arxiv_id"):
+        if aid is not None and r.get("arxiv_id") != aid:
             continue
         items.append({"job": r["job"], "kind": r.get("kind", "question"),
                       "section": r.get("section", ""), "sections": r.get("sections", []),
@@ -218,9 +322,10 @@ def free_port(pref: int = 5177) -> int:
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         sys.exit("usage: viewer.py <arxiv-id>")
-    PAPER = load(sys.argv[1])
-    print(f"{PAPER['title']} - {len(PAPER['blocks'])} blocks, "
-          f"{len(PAPER['bib'])} refs, source={PAPER['source']}")
+    doc = load(sys.argv[1])
+    START_ID = doc["arxiv_id"]
+    print(f"{doc['title']} - {len(doc['blocks'])} blocks, "
+          f"{len(doc['bib'])} refs, source={doc['source']}")
     port = free_port()
     threading.Timer(1.0, lambda: webbrowser.open(f"http://127.0.0.1:{port}/")).start()
     app.run(port=port, threaded=True)

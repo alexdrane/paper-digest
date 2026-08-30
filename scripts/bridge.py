@@ -131,24 +131,69 @@ def cmd_wait(args) -> None:
         time.sleep(1.0)
 
 
-def cmd_flags(args) -> None:
-    """Broken-rendering reports filed from the reading window, newest first."""
+def flag_files(arxiv_id: str | None):
     root = Path.home() / ".local/share/paper-digest/cache"
     rows = []
     for d in root.glob("*/flags"):
-        rows += [json.loads(f.read_text()) for f in d.glob("*.json")]
-    rows.sort(key=lambda r: r.get("created", 0), reverse=True)
-    if args.arxiv_id:
-        rows = [r for r in rows if r.get("arxiv_id") == args.arxiv_id]
+        for f in d.glob("*.json"):
+            rows.append((f, json.loads(f.read_text())))
+    rows.sort(key=lambda x: x[1].get("created", 0), reverse=True)
+    if arxiv_id:
+        rows = [x for x in rows if x[1].get("arxiv_id") == arxiv_id]
+    return rows
+
+
+def cmd_flags(args) -> None:
+    """Broken-rendering reports saved from the reading window, newest first.
+    Local-only, always - a browser click never touches GitHub. --file-issues
+    opts in to filing them as issues, using *your own* `gh` session on *this*
+    machine, one at a time with a confirmation - never automatic."""
+    rows = flag_files(args.arxiv_id)
     if not rows:
         print("no flags")
         return
-    for r in rows:
-        when = datetime.fromtimestamp(r["created"]).strftime("%Y-%m-%d %H:%M")
-        print(f"{r['id']}  {when}  {r.get('arxiv_id','?')}  [{r.get('section') or '-'}]")
+    if not args.file_issues:
+        for _, r in rows:
+            when = datetime.fromtimestamp(r["created"]).strftime("%Y-%m-%d %H:%M")
+            print(f"{r['id']}  {when}  {r.get('arxiv_id','?')}  [{r.get('section') or '-'}]"
+                  + ("  (filed)" if r.get("issue_url") else ""))
+            if r.get("note"):
+                print(f"    note: {r['note']}")
+            print(f"    raw:  {r.get('raw','')[:140].replace(chr(10),' ')}")
+        return
+
+    import shutil
+    import subprocess
+    if shutil.which("gh") is None:
+        sys.exit("gh CLI not found - install it to file issues, or drop --file-issues "
+                 "to just review flags locally")
+    for f, r in rows:
+        if r.get("issue_url"):
+            continue
+        where = r.get("section") or r.get("block_id") or "unknown location"
+        print(f"\n{r['id']}  {r.get('arxiv_id')}  [{where}]")
         if r.get("note"):
-            print(f"    note: {r['note']}")
-        print(f"    raw:  {r.get('raw','')[:140].replace(chr(10),' ')}")
+            print(f"  note: {r['note']}")
+        print(f"  raw:  {r.get('raw','')[:200].replace(chr(10),' ')}")
+        ans = input("  file as a GitHub issue on alexdrane/paper-digest? [y/N/q] ").strip().lower()
+        if ans == "q":
+            break
+        if ans != "y":
+            continue
+        title = f"[{r.get('arxiv_id')}] broken render: {where}"
+        body = (f"**Section:** {r.get('section') or '-'}\n\n"
+                + (f"**Note:** {r['note']}\n\n" if r.get("note") else "")
+                + (f"**Raw LaTeX:**\n```latex\n{r.get('raw','')[:3000]}\n```\n\n" if r.get("raw") else "")
+                + f"*Flag `{r['id']}`, filed from bridge.py flags --file-issues.*")
+        res = subprocess.run(["gh", "issue", "create", "--repo", "alexdrane/paper-digest",
+                              "--title", title, "--body", body], capture_output=True, text=True)
+        if res.returncode == 0:
+            url = res.stdout.strip().splitlines()[-1]
+            print(f"  filed: {url}")
+            r["issue_url"] = url
+            f.write_text(json.dumps(r, indent=2))
+        else:
+            print(f"  failed: {res.stderr.strip() or 'unknown gh error'}")
 
 
 def cmd_log(args) -> None:
@@ -184,6 +229,9 @@ def main() -> None:
     w.set_defaults(func=cmd_wait)
     g = sub.add_parser("log"); g.add_argument("arxiv_id"); g.set_defaults(func=cmd_log)
     fl = sub.add_parser("flags"); fl.add_argument("arxiv_id", nargs="?")
+    fl.add_argument("--file-issues", action="store_true",
+                    help="opt in to filing unfiled flags as GitHub issues, one at a "
+                         "time with a y/N prompt, using your own gh session")
     fl.set_defaults(func=cmd_flags)
     a = ap.parse_args()
     a.func(a)

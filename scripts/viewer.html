@@ -202,7 +202,20 @@ ul,ol{margin:0 0 1.15rem;padding-left:1.3rem} li{margin-bottom:.35rem}
 .qz textarea:focus{border-color:var(--accent)}
 .qz .reveal{margin-top:.4rem;background:none;border:1px solid var(--line);border-radius:6px;
             color:var(--dim);font:500 11px Inter,sans-serif;padding:.25rem .6rem;cursor:pointer}
-.qz .reveal:hover{border-color:var(--accent);color:var(--accent)}
+�.qz .reveal:hover{border-color:var(--accent);color:var(--accent)}
+.qz .btnrow{display:flex;gap:.5rem;margin-top:.4rem}
+.qz .grade{background:var(--accent);color:#fff;border:0;border-radius:6px;
+           font:600 11px Inter,sans-serif;padding:.3rem .7rem;cursor:pointer}
+.qz .grade:hover{filter:brightness(1.08)}
+.qz .grade:disabled{opacity:.55;cursor:default}
+.gr{margin-top:.55rem;padding:.55rem .75rem;border-radius:6px;font-size:13px;line-height:1.55;
+    border-left:2px solid var(--faint)}
+.gr.correct{background:#2e7d5b1a;border-color:#2e7d5b}
+.gr.partial{background:#b8860b1a;border-color:#b8860b}
+.gr.incorrect{background:#b3261e1a;border-color:#b3261e}
+.gr .verdict{font:600 10px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;
+             display:block;margin-bottom:.3rem}
+.gr.correct .verdict{color:#2e7d5b} .gr.partial .verdict{color:#b8860b} .gr.incorrect .verdict{color:#b3261e}
 .qz .why{margin-top:.5rem;padding:.5rem .7rem;border-left:2px solid var(--accent);
          background:var(--accent-soft);border-radius:0 6px 6px 0;font-size:13px;display:none}
 .note textarea{width:100%;min-height:4rem;border:0;outline:none;resize:vertical;
@@ -238,21 +251,22 @@ h2[data-collapsed='1']::after,h3[data-collapsed='1']::after{
 #lbhint{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);color:#bbb;
         font:500 12px Inter,sans-serif;z-index:101;display:none}
 .panels img{cursor:zoom-in}
-#flagbtn{position:absolute;z-index:40;display:none;background:#b3261e;color:#fff;
-         border:0;border-radius:7px;width:28px;height:28px;font:700 14px Inter,sans-serif;
-         cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.28)}
-#flagbtn:hover{filter:brightness(1.1)}
 #toast{position:fixed;bottom:1.1rem;left:50%;transform:translateX(-50%) translateY(8px);
        z-index:80;background:var(--ink);color:var(--paper);border-radius:8px;
        padding:.55rem 1rem;font:500 12.5px Inter,sans-serif;opacity:0;pointer-events:none;
        transition:.2s;box-shadow:0 6px 24px rgba(0,0,0,.3)}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-#askbtn{position:absolute;z-index:40;display:none;background:var(--accent);color:#fff;
-        border:0;border-radius:7px;padding:.42rem .8rem;font:600 12px Inter,sans-serif;
-        cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.28);white-space:nowrap}
-#askbtn:hover{filter:brightness(1.08)}
-#askbtn::after{content:'';position:absolute;bottom:-5px;left:50%;margin-left:-5px;
+#selbox{position:absolute;z-index:40;display:none;background:var(--accent);border-radius:7px;
+        box-shadow:0 4px 16px rgba(0,0,0,.28);overflow:visible}
+#selbox::after{content:'';position:absolute;bottom:-5px;left:1.1rem;
                border:5px solid transparent;border-top-color:var(--accent);border-bottom:0}
+#selbox .row{display:flex;align-items:stretch;border-radius:7px;overflow:hidden}
+#askbtn{border:0;background:none;color:#fff;padding:.42rem .8rem;font:600 12px Inter,sans-serif;
+        cursor:pointer;white-space:nowrap}
+#askbtn:hover{background:rgba(255,255,255,.12)}
+#flagbtn{border:0;background:none;color:#fff;opacity:.62;padding:.42rem .6rem;
+         font:600 12px Inter,sans-serif;cursor:pointer;border-left:1px solid rgba(255,255,255,.28)}
+#flagbtn:hover{opacity:1;background:rgba(0,0,0,.15)}
 
 /* ---------- side ---------- */
 #grip{flex:0 0 5px;cursor:col-resize;background:var(--line)}
@@ -304,9 +318,19 @@ h2[data-collapsed='1']::after,h3[data-collapsed='1']::after{
 #send{border:0;background:var(--accent);color:#fff;border-radius:9px;padding:0 1.1rem;
       height:3.4rem;font:600 13px Inter,sans-serif;cursor:pointer;transition:.12s}
 #send:hover{filter:brightness(1.08)}
+#paperSelect{display:none;width:calc(100% - 2.5rem);margin:0 1.25rem 1rem;padding:.4rem .5rem;
+             border:1px solid var(--line);border-radius:6px;background:var(--card);
+             color:var(--ink);font:500 12px Inter,sans-serif}
+.citerow{padding:.55rem .7rem;border-bottom:1px solid var(--line)}
+.citerow:last-child{border-bottom:0}
+.ctitle{font:500 12.5px Inter,sans-serif;color:var(--ink);margin-bottom:.3rem;line-height:1.4}
+.cstatus{font:400 11.5px Inter,sans-serif;color:var(--faint)}
+.openin{background:none;border:1px solid var(--accent);color:var(--accent);border-radius:5px;
+        font:600 11px Inter,sans-serif;padding:.25rem .55rem;cursor:pointer}
+.openin:hover{background:var(--accent-soft)}
 </style>
 
-<nav id="toc" class="ui"><h6>Contents</h6><div id="toclist"></div></nav>
+<nav id="toc" class="ui"><h6>Contents</h6><select id="paperSelect"></select><div id="toclist"></div></nav>
 <div id="main">
   <div id="bar" class="ui">
     <button onclick="document.getElementById('toc').classList.toggle('hide')" title="Toggle contents">☰</button>
@@ -321,8 +345,10 @@ h2[data-collapsed='1']::after,h3[data-collapsed='1']::after{
   </div>
   <div id="paper"><div id="prog"></div><div class="wrap" id="doc">loading…</div></div>
 </div>
-<button id="askbtn" class="ui">Ask about this</button>
-<button id="flagbtn" class="ui" title="Flag broken rendering">!</button>
+<div id="selbox" class="ui"><div class="row">
+  <button id="askbtn">Ask about this</button>
+  <button id="flagbtn" title="Report broken rendering &#8211; saves the raw LaTeX locally for review, doesn't touch GitHub">!</button>
+</div></div>
 <div id="toast" class="ui"></div>
 <div id="selbar" class="ui"><span id="selcount"></span>
   <button onclick="quizSelected()">Quiz these</button>
@@ -363,9 +389,11 @@ function toggleTheme(){
   localStorage.setItem('pd-theme',d?'light':'dark');
 }
 
-fetch('/paper').then(r=>r.json()).then(p=>{
-  PAPER=p;
+let CURRENT='';
+function renderPaperDoc(p){
+  PAPER=p; CURRENT=p.arxiv_id;
   document.title=p.title;
+  picked.clear(); $('selbar').style.display='none';
   // MathJax has no package system: supply the commands papers get from packages,
   // then the paper's own \newcommands (which win on a name clash).
   const FALLBACK={
@@ -391,9 +419,61 @@ fetch('/paper').then(r=>r.json()).then(p=>{
     +p.blocks.map(b=>`<div class="blk" data-id="${b.id}" data-sec="${esc(b.section)}">${b.html}</div>`).join('');
   $('stat').textContent=`${p.blocks.length} blocks`;
   MathJax.typesetPromise().then(()=>{buildSections();buildTOC();decorateHeadings();loadState();});
-  document.querySelectorAll('.cite').forEach(c=>
-    c.title=c.dataset.keys.split(',').map(k=>PAPER.bib[k]||k).join('\n\n'));
-});
+  document.querySelectorAll('.cite').forEach(c=>{
+    c.title=c.dataset.keys.split(',').map(k=>PAPER.bib[k]||k).join('\n\n');
+    c.onclick=e=>{e.stopPropagation();openCitePopover(e,c);};
+  });
+  refreshLibrary();
+}
+fetch('/paper').then(r=>r.json()).then(renderPaperDoc);
+
+/* ---- multiple papers open at once ---- */
+function refreshLibrary(){
+  fetch('/library').then(r=>r.json()).then(({papers})=>{
+    const sel=$('paperSelect');
+    sel.innerHTML=papers.map(p=>
+      `<option value="${p.id}"${p.id===CURRENT?' selected':''}>${esc(p.title||p.id)}</option>`).join('');
+    sel.style.display=papers.length>1?'block':'none';
+  });
+}
+function switchPaper(id){
+  if(id===CURRENT) return;
+  fetch('/paper?id='+encodeURIComponent(id)).then(r=>r.json()).then(renderPaperDoc);
+}
+$('paperSelect').addEventListener('change',e=>switchPaper(e.target.value));
+
+/* ---- citation click: resolve on arXiv, open alongside the current paper ---- */
+function openCitePopover(e,cite){
+  const keys=cite.dataset.keys.split(',');
+  const m=$('menu');
+  m.innerHTML='<div class="hint">'+keys.length+' work'+(keys.length>1?'s':'')+' cited here</div>'
+    +keys.map(k=>`<div class="citerow" data-k="${esc(k)}">
+        <div class="ctitle">${esc((PAPER.bib||{})[k]||k)}</div>
+        <div class="cstatus">searching arXiv…</div></div>`).join('');
+  m.style.display='block';
+  const r=cite.getBoundingClientRect();
+  m.style.top=(r.bottom+6)+'px'; m.style.left=Math.max(8,Math.min(innerWidth-360,r.left))+'px';
+  fetch('/resolve',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({from_id:CURRENT,keys})})
+   .then(r=>r.json()).then(res=>{
+     keys.forEach(k=>{
+       const row=m.querySelector(`.citerow[data-k="${CSS.escape(k)}"] .cstatus`);
+       if(!row) return;
+       const hit=res[k]&&res[k].match;
+       if(!hit){row.textContent='not found on arXiv';return;}
+       row.innerHTML=`<button class="openin">Open arXiv:${hit.arxiv_id} in reader →</button>`;
+       row.querySelector('.openin').onclick=()=>{
+         row.textContent='opening…';
+         fetch('/open',{method:'POST',headers:{'Content-Type':'application/json'},
+           body:JSON.stringify({id:hit.arxiv_id})})
+          .then(r=>r.json()).then(doc=>{
+            m.style.display='none';
+            renderPaperDoc(doc);
+          });
+       };
+     });
+   });
+}
 
 /* ---- contents + scroll spy ---- */
 function buildTOC(){
@@ -436,11 +516,11 @@ function syncTOC(){
   };
   document.querySelectorAll('.card').forEach(c=>mark(c,c.dataset.kind));
   document.querySelectorAll('.summary').forEach(s=>{if(!s.closest('.card')) mark(s,'summary');});
-  const icons={quiz:'Q',summary:'S',note:'N'};
+  const icons={quiz:'Q',summary:'S',note:'N'}, labels={quiz:'Quiz',summary:'Summary',note:'Note'};
   document.querySelectorAll('#toclist a').forEach(a=>{
     const ks=marks.get(a.dataset.t), b=a.querySelector('.badges');
     b.innerHTML=ks?[...ks].sort().map(k=>
-      `<span class="bdg ${k}" title="${k} added \u2013 click to jump">${icons[k]}</span>`).join(''):'';
+      `<span class="bdg ${k}" title="${labels[k]}">${icons[k]}</span>`).join(''):'';
     b.querySelectorAll('.bdg').forEach(el=>el.onclick=e=>{
       e.preventDefault(); e.stopPropagation(); jumpToBlock(a.dataset.t,el.classList[1]);
     });
@@ -460,10 +540,10 @@ $('paper').addEventListener('scroll',e=>{
 });
 
 /* ---- selection ---- */
-const btn=$('askbtn'), flagbtn=$('flagbtn');
+const box=$('selbox'), btn=$('askbtn'), flagbtn=$('flagbtn');
 $('paper').addEventListener('mouseup',()=>{
   const s=window.getSelection(), t=s.toString().trim();
-  if(t.length<3){btn.style.display='none';flagbtn.style.display='none';return;}
+  if(t.length<3){box.style.display='none';return;}
   const r=s.getRangeAt(0), rect=r.getBoundingClientRect();
   let node=r.commonAncestorContainer;
   if(node.nodeType===3) node=node.parentElement;
@@ -472,28 +552,24 @@ $('paper').addEventListener('mouseup',()=>{
     if(r.intersectsNode(c)) keys.push(...c.dataset.keys.split(','));
   });
   sel={text:t, section:blk?.dataset.sec||'', keys:[...new Set(keys)], blockId:blk?.dataset.id||''};
-  btn.style.display='block';
-  btn.style.top=(rect.top-42)+'px';
-  btn.style.left=Math.max(8,rect.left+rect.width/2-58)+'px';
-  flagbtn.style.display='block';
-  flagbtn.style.top=(rect.top-42)+'px';
-  flagbtn.style.left=(rect.left+rect.width/2+66)+'px';
+  box.style.display='block';
+  box.style.top=(rect.top-42)+'px';
+  box.style.left=Math.max(8,rect.left+rect.width/2-58)+'px';
 });
 document.addEventListener('mousedown',e=>{
-  if(e.target!==btn) btn.style.display='none';
-  if(e.target!==flagbtn) flagbtn.style.display='none';
+  if(!e.target.closest('#selbox')) box.style.display='none';
 });
 function toast(msg){
   const t=$('toast'); t.textContent=msg; t.classList.add('show');
   clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2600);
 }
 flagbtn.onclick=()=>{
-  flagbtn.style.display='none';
+  box.style.display='none';
   const note=prompt('What\'s broken about this? (optional \u2013 Cancel to skip the report)','');
   if(note===null) return;
   const block=(PAPER.blocks||[]).find(b=>b.id===sel.blockId);
   fetch('/flag',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({section:sel.section, block_id:sel.blockId,
+    body:JSON.stringify({id:CURRENT, section:sel.section, block_id:sel.blockId,
       raw:block?.raw||'', html:block?.html||'', note})})
    .then(r=>r.json()).then(({id})=>toast(`Flagged \u00b7 ${id} \u2014 saved for review`))
    .catch(()=>toast('Could not save the flag'));
@@ -539,7 +615,7 @@ function send(){
   q.value=''; dropSel();
 
   fetch('/ask',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({question,selection:cap.text,section:cap.section,cite_keys:cap.keys})})
+    body:JSON.stringify({id:CURRENT,question,selection:cap.text,section:cap.section,cite_keys:cap.keys})})
    .then(r=>r.json()).then(({job})=>{
      jobCards.set(job,holder); holder.dataset.job=job; refreshQueue();
      const body=holder.querySelector('.answer');
@@ -565,7 +641,7 @@ document.addEventListener('click',e=>{
   if(!e.target.closest('#qpanel')&&!e.target.closest('#qbtn')) closeQueue();
 });
 function refreshQueue(){
-  fetch('/pending').then(r=>r.json()).then(({items})=>{
+  fetch('/pending?id='+encodeURIComponent(CURRENT)).then(r=>r.json()).then(({items})=>{
     const n=items.length;
     const c=$('qcount'); c.style.display=n?'inline':'none'; c.textContent=n;
     const p=$('qpanel');
@@ -731,7 +807,7 @@ function addCard(sec,kind,content,names,restoring){
       ? (kind==='quiz'?'':md(content))
       : '<span class="thinking">queued for your Claude window</span>';
     if(!content) el.querySelector('h6').insertAdjacentHTML('afterbegin','');
-    if(content&&kind==='quiz') renderQuiz(body,content);
+    if(content&&kind==='quiz') renderQuiz(body,content,names);
     if(content&&kind!=='quiz') MathJax.typesetPromise([body]);
   }
   if(el.dataset.place==='top'){
@@ -770,12 +846,12 @@ function requestCard(sec,kind,names){
     : `Summarise: ${names.join('; ')}. What it establishes, the mechanism, and any `
       +`assumption it quietly relies on. 3-5 sentences, no preamble.`;
   fetch('/ask',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({kind,question:q,sections:names,section:names[0]})})
+    body:JSON.stringify({id:CURRENT,kind,question:q,sections:names,section:names[0]})})
    .then(r=>r.json()).then(({job})=>{
      jobCards.set(job,el); el.dataset.job=job; refreshQueue();
      streamJob(job,txt=>{
        el.dataset.raw=txt;
-       if(kind==='quiz'){body.innerHTML='';renderQuiz(body,txt);}
+       if(kind==='quiz'){body.innerHTML='';renderQuiz(body,txt,names);}
        else{body.innerHTML=md(txt);MathJax.typesetPromise([body]);}
        jobCards.delete(job); refreshQueue();
        saveState();
@@ -820,7 +896,7 @@ function parseQuiz(text){
   });
   return qs;
 }
-function renderQuiz(body,text){
+function renderQuiz(body,text,sections){
   const qs=parseQuiz(text);
   if(!qs.length){body.innerHTML=md(text);MathJax.typesetPromise([body]);return;}
   qs.forEach((item,i)=>{
@@ -843,10 +919,14 @@ function renderQuiz(body,text){
     }else{
       const ta=document.createElement('textarea');
       ta.placeholder='Your answer…'; d.appendChild(ta);
+      const row=document.createElement('div'); row.className='btnrow';
+      const gr=document.createElement('button');
+      gr.className='grade'; gr.textContent='Grade my answer';
+      gr.onclick=()=>gradeAnswer(d,item,ta,gr,sections);
       const rv=document.createElement('button');
       rv.className='reveal'; rv.textContent='show model answer';
       rv.onclick=()=>{d.querySelector('.why').style.display='block';rv.remove();};
-      d.appendChild(rv);
+      row.appendChild(gr); row.appendChild(rv); d.appendChild(row);
     }
     if(item.why.length){
       const w=document.createElement('div'); w.className='why';
@@ -855,6 +935,36 @@ function renderQuiz(body,text){
     body.appendChild(d);
   });
   MathJax.typesetPromise([body]);
+}
+
+/* ---- grading a free-response answer ---- */
+function parseGrade(text){
+  const m=text.match(/^\s*(CORRECT|PARTIAL|INCORRECT)\b[:\-\s]*/i);
+  return {verdict:(m?m[1]:'partial').toLowerCase(), feedback:m?text.slice(m[0].length):text};
+}
+function gradeAnswer(qzEl,item,ta,gr,sections){
+  const answer=ta.value.trim();
+  if(!answer){ta.focus();return;}
+  gr.disabled=true; gr.textContent='grading…';
+  ta.disabled=true;
+  const box=document.createElement('div'); box.className='gr';
+  box.innerHTML='<span class="thinking">queued for your Claude window</span>';
+  qzEl.appendChild(box);
+  const question=`Grade a reader's answer to a quiz question. Follow the GRADE FORMAT.\n\n`
+    +`Question: ${item.q}\n\nReader's answer: ${answer}\n\n`
+    +(item.why.length?`Model answer, for your reference \u2013 do not just diff against it:\n${item.why.join(' ')}`:'');
+  fetch('/ask',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id:CURRENT,kind:'grade',question,section:(sections||[])[0]||'',sections:sections||[]})})
+   .then(r=>r.json()).then(({job})=>{
+     jobCards.set(job,box); refreshQueue();
+     streamJob(job,txt=>{
+       const g=parseGrade(txt);
+       box.className='gr '+g.verdict;
+       box.innerHTML=`<span class="verdict">${g.verdict}</span>${md(g.feedback.trim())}`;
+       MathJax.typesetPromise([box]);
+       gr.textContent='graded'; jobCards.delete(job); refreshQueue();
+     },msg=>{box.innerHTML=`<span class="thinking">${esc(msg)}</span>`;});
+   });
 }
 
 /* ---- workspace persistence ---- */
@@ -869,11 +979,11 @@ function saveState(){
     })).filter(x=>x.after);
     const folded=[...document.querySelectorAll('.sec.folded')].map(s=>s.dataset.anchor);
     fetch('/state',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({inserts,folded})});
+      body:JSON.stringify({id:CURRENT,inserts,folded})});
   },400);
 }
 function loadState(){
-  fetch('/state').then(r=>r.json()).then(st=>{
+  fetch('/state?id='+encodeURIComponent(CURRENT)).then(r=>r.json()).then(st=>{
     (st.folded||[]).forEach(a=>{
       const s=document.querySelector(`.sec[data-anchor="${a}"]`); if(s) foldSection(s);
     });
@@ -933,7 +1043,7 @@ function summarise(h){
   box.innerHTML='<span class="thinking">queued for your Claude window</span>';
   syncTOC();
   fetch('/ask',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({kind:'summary',section:name,
+    body:JSON.stringify({id:CURRENT,kind:'summary',section:name,
       question:`Summarise the section "${name}" of this paper: what it establishes, `
               +`the mechanism, and any assumption it quietly relies on. `
               +`3-5 sentences, no preamble.`})})
@@ -967,7 +1077,8 @@ addEventListener('keydown',e=>{
 
 function endSession(){
   if(!confirm('Hand back to your Claude window? You can keep reading after.')) return;
-  fetch('/done',{method:'POST'}).then(()=>{
+  fetch('/done',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id:CURRENT})}).then(()=>{
     const b=$('endbtn'); b.textContent='handed over ✓'; b.disabled=true;
     $('log').insertAdjacentHTML('beforeend',
       '<div class="msg"><div class="who">Session</div><div class="answer">'

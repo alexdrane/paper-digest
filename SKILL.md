@@ -180,15 +180,28 @@ Reply with this and nothing else — no preamble, no closing remark:
   explanation (MCQ) or the model answer (free response).
 - Maths in `$...$` works; it is typeset in the card.
 
+### GRADE FORMAT
+
+Free-response questions carry a **Grade my answer** button. It sends the
+question, the reader's typed answer, and the model answer (for your reference —
+don't just diff against it) as `kind: grade`. Reply with the verdict word on its
+own line, then feedback:
+
+```
+PARTIAL
+Right that the drift and kernel are competing for the same power, but the
+answer doesn't say why that makes the split unidentifiable in principle rather
+than just numerically fiddly - see the note in §2.1 about the flexknot mean
+being able to absorb anything the kernel could explain.
+```
+
+First line is exactly one of `CORRECT`, `PARTIAL`, `INCORRECT`. Below it, 2-4
+sentences: what the answer got right, what it missed, and - the part that
+teaches something - connect the gap back to the mechanism rather than just
+naming it missing. No numeric score; a percentage on an open-ended answer is
+false precision the reader can't act on.
+
 ### Which kind to use
-
-Default to **free response** for anything about mechanism, consequence or
-assumptions. Offering four options turns "recall the mechanism" into "recognise
-the plausible one", which is a much weaker test and lets the user feel they knew
-something they only recognised.
-
-Use MCQ only where recognition genuinely is the skill: glossary terms, which
-survey has which instrument, which of two definitions is the standard one.
 
 A quiz is 3-6 questions. Write them so they still make sense read cold in three
 weeks — they are the seed for spaced repetition. Never quiz on numbers or author
