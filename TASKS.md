@@ -24,6 +24,32 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: open | claimed: — | **New paper load is slow — decouple figures from getting text on screen.**
+  Current pipeline for a fresh (uncached) paper: `viewer.py`'s `load()` shells
+  out to `arxiv.py fetch` as a **blocking subprocess** (`subprocess.run`,
+  `check=True`) that downloads the whole e-print tarball, and - in one pass,
+  inside `fetch_source_text` - both writes every figure file to disk *and*
+  assembles the `.tex`. Only once that whole subprocess returns does `load()`
+  read `fulltext.txt` and run `texhtml.render()`, and only after *that*
+  completes does `/open`/`/paper` send anything to the browser. So the reader
+  waits for figure bytes to be downloaded and written to disk (these papers'
+  tarballs are frequently multi-MB, dominated by figure PDF size - one in
+  today's session was 5.5MB) before seeing a single word of text, even though
+  individual figure *conversion* to PNG is already lazy per-request.
+  The network download of the tarball itself can't be split (arXiv's e-print
+  endpoint returns the whole thing in one response, text and figures
+  together) - but everything downstream of having those bytes in memory can
+  be reordered. Fix direction: in `fetch_source_text`, do the fast pass first
+  - assemble and return the `.tex`/`.bbl` content immediately once the tarball
+  is parsed - and defer the actual figure disk-writes to a background
+  thread that doesn't block the caller. Server-side, `load()`/`/open`/`/paper`
+  should return the rendered doc as soon as text parsing is done, not wait on
+  every figure being written to `figures/` first. Individual `<img>` requests
+  hitting `/figure` before their file has landed should either wait briefly
+  or 202/retry rather than 404ing during that window.
+  Files: `scripts/arxiv.py` (`fetch_source_text`), `scripts/viewer.py`
+  (`load`, and the `/open`/`/paper` routes' relationship to it).
+
 - [ ] status: open | claimed: — | **Cache-hit check doesn't notice figures are missing.**
   Found and fixed live for one paper (arXiv:2602.22307 — real bug, confirmed:
   its tarball genuinely contains 8 figure PDFs at full size, but its cached
