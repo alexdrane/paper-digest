@@ -12,6 +12,7 @@ spawning separately-billed `claude -p` subprocesses.
     bridge.py reply <job> [file]   answer from a file, or stdin
     bridge.py wait [--timeout N]   block until a request arrives, then print it
     bridge.py blocks <id> [term]   list a cached paper's blocks (id | section | raw)
+    bridge.py saved                papers saved for later, with provenance
 """
 from __future__ import annotations
 
@@ -235,6 +236,28 @@ def cmd_papers(args) -> None:
         print("    " + "  |  ".join(bits))
 
 
+def cmd_saved(args) -> None:
+    """Papers deliberately saved for later from the reading window, newest
+    first. `via` shows which paper was open when this one was saved - a saved
+    list read as a citation trail. Read-only; reads saved.json."""
+    f = Path.home() / ".local/share/paper-digest/saved.json"
+    try:
+        items = json.loads(f.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        items = []
+    if not items:
+        print("no saved papers")
+        return
+    for s in sorted(items, key=lambda x: x.get("saved_at", 0), reverse=True):
+        when = datetime.fromtimestamp(s.get("saved_at", 0)).strftime("%Y-%m-%d %H:%M")
+        title = (s.get("title") or "?").replace("\n", " ")
+        print(f"{s.get('arxiv_id','?')}  {title[:66]}")
+        bits = [f"saved {when}"]
+        if s.get("via"):
+            bits.append(f"via arXiv:{s['via']}")
+        print("    " + "  |  ".join(bits))
+
+
 def cmd_blocks(args) -> None:
     """Render a cached paper's fulltext and list its blocks so an answering
     session can cite one by id with a `[[bNN]]` marker (post-processed in the
@@ -290,6 +313,7 @@ def main() -> None:
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list").set_defaults(func=cmd_list)
     sub.add_parser("papers").set_defaults(func=cmd_papers)
+    sub.add_parser("saved").set_defaults(func=cmd_saved)
     s = sub.add_parser("show"); s.add_argument("job"); s.set_defaults(func=cmd_show)
     r = sub.add_parser("reply"); r.add_argument("job")
     r.add_argument("file", nargs="?"); r.set_defaults(func=cmd_reply)

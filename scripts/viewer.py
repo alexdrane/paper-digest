@@ -31,6 +31,7 @@ import texhtml  # noqa: E402
 
 CACHE = Path.home() / ".local/share/paper-digest/cache"
 BRIDGE = Path.home() / ".local/share/paper-digest/bridge"
+SAVED = Path.home() / ".local/share/paper-digest/saved.json"
 app = Flask(__name__)
 
 LIB: dict[str, dict] = {}       # arxiv_id -> rendered doc
@@ -68,6 +69,41 @@ def load(aid: str) -> dict:
 def get_doc(explicit_id: str | None) -> dict | None:
     aid = explicit_id or START_ID
     return LIB.get(aid)
+
+
+# ------------------------------------------------------------------- saved papers
+# A "save" is a deliberate keep-for-later, persisted across restarts - distinct
+# from the fetch cache (fetched once, no intent) and the in-memory LIB (open in
+# this session only). `via` records which paper you were reading when you saved
+# this one, so a saved list doubles as a citation-rabbit-hole trail.
+
+def load_saved() -> list[dict]:
+    try:
+        data = json.loads(SAVED.read_text())
+        return data if isinstance(data, list) else []
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def write_saved(items: list[dict]) -> None:
+    SAVED.parent.mkdir(parents=True, exist_ok=True)
+    SAVED.write_text(json.dumps(items, indent=2))
+
+
+def is_saved(aid: str) -> bool:
+    return any(s.get("arxiv_id") == aid for s in load_saved())
+
+
+def known_title(aid: str) -> str:
+    if aid in LIB:
+        return LIB[aid]["title"]
+    meta = CACHE / aid.replace("/", "_") / "meta.json"
+    if meta.exists():
+        try:
+            return json.loads(meta.read_text()).get("title", "")
+        except json.JSONDecodeError:
+            pass
+    return ""
 
 
 # ------------------------------------------------------------------------- bridge
@@ -158,13 +194,47 @@ def index():
 @app.get("/paper")
 def paper():
     doc = get_doc(request.args.get("id"))
-    return (jsonify(doc), 200) if doc else (jsonify({"error": "not open"}), 404)
+    if not doc:
+        return jsonify({"error": "not open"}), 404
+    return jsonify({**doc, "saved": is_saved(doc["arxiv_id"])})
 
 
 @app.get("/library")
 def library():
     return jsonify({"start": START_ID,
-                    "papers": [{"id": d["arxiv_id"], "title": d["title"]} for d in LIB.values()]})
+                    "papers": [{"id": d["arxiv_id"], "title": d["title"],
+                                "saved": is_saved(d["arxiv_id"])} for d in LIB.values()]})
+
+
+@app.get("/saved")
+def saved_list():
+    return jsonify({"saved": load_saved()})
+
+
+@app.post("/save")
+def save_paper():
+    data = request.get_json(force=True) or {}
+    aid = (data.get("id") or "").strip()
+    if not aid:
+        return jsonify({"error": "missing id"}), 400
+    items = load_saved()
+    if any(s.get("arxiv_id") == aid for s in items):
+        return jsonify({"ok": True, "saved": True, "already": True})
+    via = (data.get("via") or "").strip() or None
+    if via == aid:
+        via = None
+    items.append({"arxiv_id": aid,
+                  "title": (data.get("title") or "").strip() or known_title(aid) or aid,
+                  "saved_at": time.time(), "via": via})
+    write_saved(items)
+    return jsonify({"ok": True, "saved": True})
+
+
+@app.post("/unsave")
+def unsave_paper():
+    aid = ((request.get_json(force=True) or {}).get("id") or "").strip()
+    write_saved([s for s in load_saved() if s.get("arxiv_id") != aid])
+    return jsonify({"ok": True, "saved": False})
 
 
 @app.post("/open")
