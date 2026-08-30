@@ -24,6 +24,18 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: open | claimed: — | **Switching papers doesn't scroll to top or give any indication of the change.**
+  `switchPaper`/`renderPaperDoc` swap `#doc`'s content in place — if you were
+  scrolled halfway down the old paper, you land at the same scroll offset in
+  the new one (often mid-paragraph, disorienting), and there's no visual cue
+  a switch even happened beyond the content silently being different.
+  Fix: on switch, reset `#paper`'s scrollTop to 0 (smooth-scroll is fine,
+  match the existing `behavior:'smooth'` pattern used elsewhere), and add a
+  brief visible transition — e.g. a short fade/flash on `#doc`, or reuse the
+  `.card.new` flash-on-arrival CSS pattern already in the file — so a switch
+  reads as an event, not a silent content swap.
+  Files: `scripts/viewer.html` (`renderPaperDoc`/`switchPaper`).
+
 - [ ] status: open | claimed: — | **Bug: LIB/FIGDIRS/WORKDIRS reset on every server restart.**
   Same root cause behind two separate user-visible symptoms: (1) the
   paper-switcher dropdown only ever shows the paper the process launched on
