@@ -11,6 +11,7 @@ spawning separately-billed `claude -p` subprocesses.
     bridge.py show <job>           the full request
     bridge.py reply <job> [file]   answer from a file, or stdin
     bridge.py wait [--timeout N]   block until a request arrives, then print it
+    bridge.py blocks <id> [term]   list a cached paper's blocks (id | section | raw)
 """
 from __future__ import annotations
 
@@ -234,6 +235,34 @@ def cmd_papers(args) -> None:
         print("    " + "  |  ".join(bits))
 
 
+def cmd_blocks(args) -> None:
+    """Render a cached paper's fulltext and list its blocks so an answering
+    session can cite one by id with a `[[bNN]]` marker (post-processed in the
+    reading window into a hover-source chip). Optional `term` filters blocks
+    whose source text or section contains it (case-insensitive)."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import texhtml
+
+    d = Path.home() / ".local/share/paper-digest/cache" / args.arxiv_id.replace("/", "_")
+    tex = d / "fulltext.txt"
+    if not tex.exists():
+        sys.exit(f"no cached fulltext for {args.arxiv_id!r} - run arxiv.py fetch first")
+    figdir = str(d / "figures") if (d / "figures").is_dir() else None
+    blocks = texhtml.render(tex.read_text(), figdir)["blocks"]
+
+    term = (args.term or "").lower()
+    shown = 0
+    for b in blocks:
+        raw = " ".join((b.get("raw") or "").split())
+        sec = b.get("section", "-")
+        if term and term not in raw.lower() and term not in sec.lower():
+            continue
+        shown += 1
+        print(f"{b['id']:>5} | {sec[:45]:45} | {raw[:100]}")
+    if not shown:
+        print(f"no blocks matching {args.term!r}" if term else "no blocks")
+
+
 def cmd_log(args) -> None:
     """Everything that happened while reading, for picking the work back up."""
     d = Path.home() / ".local/share/paper-digest/cache" / args.arxiv_id.replace("/", "_")
@@ -267,6 +296,8 @@ def main() -> None:
     w = sub.add_parser("wait"); w.add_argument("--timeout", type=int, default=300)
     w.set_defaults(func=cmd_wait)
     g = sub.add_parser("log"); g.add_argument("arxiv_id"); g.set_defaults(func=cmd_log)
+    bl = sub.add_parser("blocks"); bl.add_argument("arxiv_id")
+    bl.add_argument("term", nargs="?"); bl.set_defaults(func=cmd_blocks)
     fl = sub.add_parser("flags"); fl.add_argument("arxiv_id", nargs="?")
     fl.add_argument("--file-issues", action="store_true",
                     help="opt in to filing unfiled flags as GitHub issues, one at a "
