@@ -64,17 +64,12 @@ Master will not edit a file a task below claims, to keep merges clean.
   by bib key; check the cache before calling `resolve_title`.
   Files: `scripts/viewer.py` (`resolve()` route).
 
-- [ ] status: claimed | claimed: alex-drane-21 | **`bridge.py papers` — cache index.**
-  No way to ask "what have I read?" beyond `ls ~/.local/share/paper-digest/cache/`.
-  Add a command listing every cached paper: title, when fetched, whether it
-  has a `session.md` (was actually read/discussed), how many flags, how many
-  quiz/summary/note cards in `workspace.json`. This is the missing piece for
-  reading-plan / "what do I know" questions the skill's brainstorm wanted.
-  Files: `scripts/bridge.py` (new command). Read-only against existing cache
-  structure — no server changes needed, safe to build fully standalone.
+- [x] `bridge.py papers` — cache index. Done by alex-drane-21.
 
 ## Done
 
+- [x] `bridge.py papers` cache index — title, fetched-when, read/discussed vs
+      fetched-only, flag count, quiz/summary/note card counts
 - [x] Multi-paper mode (citation resolution, `/open`, paper-switcher dropdown)
 - [x] Quiz grading via the bridge (free-response `Grade my answer`)
 - [x] Subsection (h3) insert gaps, not just top-level sections
