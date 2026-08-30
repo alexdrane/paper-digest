@@ -24,6 +24,28 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: open | claimed: — | **Save/star a paper — a real "collect interesting references" list.**
+  Distinct from both "cached" (fetched once, no intent attached) and "open in
+  this session" (`/library`, lives in server memory, resets on every restart —
+  see the earlier lost-papers issue). A save is a deliberate action: keep a
+  small persisted list of papers the reader actually wants to come back to.
+  - Storage: a simple JSON list, e.g.
+    `~/.local/share/paper-digest/saved.json` — `[{arxiv_id, title, saved_at,
+    via}]`, where `via` is provenance (e.g. the arXiv id of the paper you were
+    reading when you saved it, or `null` if saved directly) — that's what
+    makes this useful as a citation-rabbit-hole collector, not just a list.
+  - Server: `POST /save` and `POST /unsave` (`{id, via}` / `{id}`), and thread
+    a `saved: bool` into whatever already reports on a paper so the UI can
+    show the right star state — `/library`'s entries and/or `/paper`.
+  - UI: a save/star action in two places — the citation popover (next to "Open
+    arXiv:X in reader →", so a reference can be *collected* without switching
+    reading focus to it, which is the whole point) and somewhere in the main
+    toolbar for the paper currently open.
+  - `bridge.py saved` — list the saved papers, each with its `via` provenance
+    if any, similar style to `bridge.py papers`.
+  Files: `scripts/viewer.py` (routes + storage), `scripts/viewer.html` (star
+  UI), `scripts/bridge.py` (new command).
+
 - [ ] status: open | claimed: — | **Word-wrapped prose in an answer renders as one line per wrap.**
   `md()` calls `marked.parse(text,{breaks:true})`, which turns every single
   `\n` into a `<br>`. That's fine for genuinely short lines, but any answer
