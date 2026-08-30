@@ -24,7 +24,7 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
-- [ ] status: open | claimed: — | **Hover-source citations in answers.**
+- [ ] status: claimed | claimed: alex-drane-75 | **Hover-source citations in answers.**
   Claude's markdown answers (questions/summaries/grades) should ground claims
   in the paper: define an inline marker like `[[bNN]]` referencing a block id,
   post-process it in `md()` into a hoverable/clickable span whose tooltip
@@ -64,7 +64,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   by bib key; check the cache before calling `resolve_title`.
   Files: `scripts/viewer.py` (`resolve()` route).
 
-- [ ] status: open | claimed: — | **`bridge.py papers` — cache index.**
+- [ ] status: claimed | claimed: alex-drane-21 | **`bridge.py papers` — cache index.**
   No way to ask "what have I read?" beyond `ls ~/.local/share/paper-digest/cache/`.
   Add a command listing every cached paper: title, when fetched, whether it
   has a `session.md` (was actually read/discussed), how many flags, how many
