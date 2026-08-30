@@ -349,6 +349,12 @@ h2[data-collapsed='1']::after,h3[data-collapsed='1']::after{
 .cstatus.err{color:#b3261e}
 .cstatus a{color:var(--accent)}
 .openin:hover{background:var(--accent-soft)}
+#savebtn.on{color:var(--accent)}
+.citerow .star{margin-left:.4rem;background:none;border:1px solid var(--line);
+               color:var(--dim);border-radius:5px;cursor:pointer;padding:.15rem .4rem;
+               font:500 11px Inter,sans-serif}
+.citerow .star:hover{border-color:var(--accent);color:var(--accent)}
+.citerow .star:disabled{cursor:default;color:var(--accent);border-color:var(--accent)}
 </style>
 
 <nav id="toc" class="ui"><h6>Contents</h6><select id="paperSelect"></select><div id="toclist"></div></nav>
@@ -360,6 +366,7 @@ h2[data-collapsed='1']::after,h3[data-collapsed='1']::after{
     <button id="qbtn" onclick="toggleQueue(event)" title="Pending requests">queue<span id="qcount" style="display:none"></span></button>
     <div id="qpanel" class="ui"></div>
     <button onclick="endSession()" id="endbtn" title="Tell the Claude window you are done">done reading</button>
+    <button onclick="toggleSave()" id="savebtn" title="Save this paper for later">☆</button>
     <button onclick="zoomText(-1)" title="Smaller text">A−</button>
     <button onclick="zoomText(1)" title="Larger text">A+</button>
     <button onclick="toggleTheme()" id="themebtn" title="Theme">◐</button>
@@ -414,6 +421,7 @@ let CURRENT='';
 function renderPaperDoc(p){
   PAPER=p; CURRENT=p.arxiv_id;
   document.title=p.title;
+  setSaveBtn(!!p.saved);
   picked.clear(); $('selbar').style.display='none';
   // MathJax has no package system: supply the commands papers get from packages,
   // then the paper's own \newcommands (which win on a name clash).
@@ -470,6 +478,24 @@ function trunc(s,n){s=String(s||'');return s.length>n?s.slice(0,n-1).trimEnd()+'
 
 fetch('/paper').then(r=>r.json()).then(renderPaperDoc);
 
+/* ---- save / star the open paper ---- */
+function setSaveBtn(on){
+  const b=$('savebtn'); if(!b) return;
+  b.classList.toggle('on',on);
+  b.textContent=on?'★':'☆';
+  b.title=on?'Saved for later — click to remove':'Save this paper for later';
+}
+function toggleSave(){
+  const on=$('savebtn').classList.contains('on');
+  fetch(on?'/unsave':'/save',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id:CURRENT,title:PAPER&&PAPER.title})})
+   .then(r=>r.json()).then(res=>{
+     setSaveBtn(!!res.saved);
+     toast(res.saved?'Saved for later':'Removed from saved');
+     refreshLibrary();
+   }).catch(()=>toast('Could not update the saved list'));
+}
+
 /* ---- multiple papers open at once ---- */
 function refreshLibrary(){
   fetch('/library').then(r=>r.json()).then(({papers})=>{
@@ -504,7 +530,18 @@ function openCitePopover(e,cite){
        if(!row) return;
        const hit=res[k]&&res[k].match;
        if(!hit){row.textContent='not found on arXiv';return;}
-       row.innerHTML=`<button class="openin">Open arXiv:${hit.arxiv_id} in reader →</button>`;
+       row.innerHTML=`<button class="openin">Open arXiv:${hit.arxiv_id} in reader →</button>`
+                    +`<button class="star" title="Save to your list without switching to it">☆ save</button>`;
+       row.querySelector('.star').onclick=(ev)=>{
+         ev.stopPropagation();
+         const s=ev.currentTarget; s.disabled=true;
+         fetch('/save',{method:'POST',headers:{'Content-Type':'application/json'},
+           body:JSON.stringify({id:hit.arxiv_id,title:hit.title,via:CURRENT})})
+          .then(r=>r.json()).then(()=>{s.textContent='★ saved';
+            if(hit.arxiv_id===CURRENT) setSaveBtn(true);
+            refreshLibrary(); toast(`Saved arXiv:${hit.arxiv_id}`);})
+          .catch(()=>{s.disabled=false; toast('Could not save it');});
+       };
        row.querySelector('.openin').onclick=(ev)=>{
          ev.stopPropagation();   // else the document-level click-away listener
                                  // closes this popover on the same click, and
