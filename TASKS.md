@@ -24,6 +24,38 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: open | claimed: — | **Citation resolution: real misses, and a silent-wrong-match risk.**
+  Ran a real batch test against arXiv:2602.11264's bibliography (10 citations):
+  9/10 resolved correctly at 0.98-1.0 confidence. Two distinct problems in the
+  remaining case and a near-miss:
+  1. **False miss.** `shen2011catalog` ("A catalog of quasar properties from
+     sloan digital sky survey data release 7") genuinely exists on arXiv as
+     `1006.5178`, but `resolve_title`'s `ti:"..."` field query returns zero
+     hits for it - arXiv's title-field search is apparently stricter than a
+     human reader's notion of "same title" (case, punctuation, or word-order
+     sensitivity, or our `.bbl`-extracted text differing subtly from the real
+     arXiv title). The plain-text fallback then returns completely unrelated
+     garbage (particle physics, gravitational-wave papers), which the 0.72
+     similarity threshold correctly rejects - so this fails safe (a clean
+     miss, not a wrong match) but still fails.
+  2. **More concerning: a real title-collision risk.** `ulrich1997variability`
+     and `peterson2001variability` - two *different* citations, generically
+     titled "Variability of active galactic nuclei" - both resolved to the
+     exact same arXiv id (`astro-ph/0109495`, published 2001) at confidence
+     1.0. Ulrich et al. is a 1997 review; if it's not on arXiv at all (quite
+     plausible for an older ARAA review), this is a **silent wrong match**,
+     not a safe miss - title-only matching with no author/year cross-check
+     can't tell two same-titled papers apart, and unlike case 1, this doesn't
+     visibly fail, it just opens the wrong paper confidently.
+  Fix directions: for (1), try a less strict tier before the unconstrained
+  plain-text fallback - e.g. a `ti:` query without quotes, or the first ~6
+  words only. For (2), add a secondary check using data already available -
+  the bib entry string has the first author's surname; compare it against the
+  arXiv result's author list before accepting a match, not just title
+  similarity. Do (2) regardless of (1)'s outcome - it's the more important
+  fix since it's a silent-failure mode, not a visible one.
+  Files: `scripts/viewer.py` (`resolve_title`).
+
 - [ ] status: claimed | claimed: alex-drane-75 | **`\ensuremath{...}` inside a macro expansion renders as literal text.**
   Reproduce: arXiv:2602.22307 defines `\newcommand{\days}{\ensuremath{\mathrm{days}}\xspace}`
   and uses `\days` in body text (e.g. "10 \days"). Rendered output shows the
