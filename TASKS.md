@@ -24,6 +24,29 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: claimed | claimed: alex-drane-75 | **URGENT - real root cause: figure `<img>` src has no `?id=`, so figures only ever work for the launch paper.**
+  Confirmed against real server access logs (not synthetic tests) - every
+  `/figure/<name>` request from the browser carries no `?id=` at all. Server's
+  `/figure` route does `figdir = FIGDIRS.get(request.args.get("id") or
+  START_ID)` - so with no id sent, it *always* looks in `START_ID`'s figures
+  folder, for every paper. Any paper other than the one the server happened
+  to launch on has 100% of its figures 404 forever, regardless of whether
+  they're actually on disk (this is bigger than, and mostly subsumes, the
+  earlier stale-cache-figures fix - that fix was real but doesn't matter if
+  the URL never reaches the right paper's folder in the first place).
+  Root cause: `render_float` in `texhtml.py` hard-codes `src="/figure/{name}"`
+  with no id - and `texhtml.render()` never receives the paper's arxiv_id in
+  the first place, so it has no way to embed one even if it wanted to.
+  Fix: thread the arxiv_id through to `render()`/`render_float` (it's known
+  at every call site in `viewer.py`'s `load()`) and embed it in the `src`
+  URL - `src="/figure/{name}?id={arxiv_id}"`. HTML is regenerated fresh on
+  every `load()` call (not cached to disk), so this fix applies immediately
+  on restart with no data migration needed.
+  This has been reported three times this session and is still broken -
+  treat as priority over anything else in the pool.
+  Files: `scripts/texhtml.py` (`render`, `render_float`), `scripts/viewer.py`
+  (the `render()` call site in `load()`).
+
 - [ ] status: open | claimed: — | **New paper load is slow — decouple figures from getting text on screen.**
   Current pipeline for a fresh (uncached) paper: `viewer.py`'s `load()` shells
   out to `arxiv.py fetch` as a **blocking subprocess** (`subprocess.run`,
