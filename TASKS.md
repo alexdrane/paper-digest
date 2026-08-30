@@ -24,6 +24,28 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: open | claimed: — | **Browser refresh always reloads the launch paper, not whichever you were viewing.**
+  Real gap on top of the LIB/FIGDIRS server-side persistence (already fixed):
+  that fix means the *server* remembers every paper across a restart, but the
+  *initial page load* — `fetch('/paper').then(...)` at the top of
+  `viewer.html`, no `?id=` — always resolves to `START_ID` server-side
+  (`get_doc(None)` falls back to `START_ID`). So a plain browser refresh while
+  looking at a citation-opened paper snaps you back to the paper the process
+  launched on, even though that other paper's data was never actually lost.
+  Same root cause explains what looks like "the queue disappeared" — the queue
+  panel polls `/pending?id=CURRENT`, so once a refresh resets `CURRENT` back
+  to `START_ID`, a pending request for the paper you'd switched to just stops
+  showing up (it's still on disk in `bridge/queue/`, still answerable via
+  `bridge.py list`/`show`/`reply` directly — nothing is deleted).
+  Fix: persist the last-viewed paper id client-side — `localStorage`, same
+  pattern already used for theme (`pd-theme`) and font size (`pd-fs`) — and on
+  load, fetch that id instead of the bare `/paper` (falling back to the bare
+  call if that id 404s, e.g. the process was relaunched on a different start
+  paper and never restored it — shouldn't happen post-persistence-fix, but
+  don't hard-fail on it). Update it wherever `CURRENT` is set
+  (`renderPaperDoc`).
+  Files: `scripts/viewer.html` only (`renderPaperDoc`, the initial `fetch`).
+
 - [ ] status: open | claimed: — | **Title extraction can capture a `\thanks`/footnote inside `\title{}`.**
   arXiv:0803.4015 (an old COSMOGRAIL paper) renders its title as the telescope
   acknowledgment credits ("Based on observations obtained with the 1.2m EULER
