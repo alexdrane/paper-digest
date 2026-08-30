@@ -7,6 +7,7 @@ work on the interactive session (with the whole paper in context) instead of
 spawning separately-billed `claude -p` subprocesses.
 
     bridge.py list                 pending requests, oldest first
+    bridge.py papers               every cached paper: fetched when, read?, flags, cards
     bridge.py show <job>           the full request
     bridge.py reply <job> [file]   answer from a file, or stdin
     bridge.py wait [--timeout N]   block until a request arrives, then print it
@@ -196,6 +197,43 @@ def cmd_flags(args) -> None:
             print(f"  failed: {res.stderr.strip() or 'unknown gh error'}")
 
 
+def cmd_papers(args) -> None:
+    """Every paper in the local cache: what's been fetched, and what was done
+    with it. Read-only - just walks ~/.local/share/paper-digest/cache/*/."""
+    root = Path.home() / ".local/share/paper-digest/cache"
+    dirs = sorted(d for d in root.glob("*/") if (d / "meta.json").exists())
+    if not dirs:
+        print("no papers cached")
+        return
+    for d in dirs:
+        meta = json.loads((d / "meta.json").read_text())
+        arxiv_id = meta.get("id", d.name.replace("_", "/"))
+        title = meta.get("title", "?").replace("\n", " ")
+        fetched = datetime.fromtimestamp(
+            (d / "meta.json").stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+
+        sess = d / "session.md"
+        read = sess.exists() and sess.read_text().strip() != ""
+
+        n_flags = len(list((d / "flags").glob("*.json"))) if (d / "flags").is_dir() else 0
+
+        cards: dict[str, int] = {}
+        ws = d / "workspace.json"
+        if ws.exists():
+            st = json.loads(ws.read_text())
+            for ins in st.get("inserts", []):
+                cards[ins.get("kind", "?")] = cards.get(ins.get("kind", "?"), 0) + 1
+
+        print(f"{arxiv_id}  {title[:66]}")
+        bits = [f"fetched {fetched}",
+                "read/discussed" if read else "fetched only"]
+        if n_flags:
+            bits.append(f"{n_flags} flag" + ("s" if n_flags != 1 else ""))
+        if cards:
+            bits.append(", ".join(f"{v} {k}" for k, v in sorted(cards.items())))
+        print("    " + "  |  ".join(bits))
+
+
 def cmd_log(args) -> None:
     """Everything that happened while reading, for picking the work back up."""
     d = Path.home() / ".local/share/paper-digest/cache" / args.arxiv_id.replace("/", "_")
@@ -222,6 +260,7 @@ def main() -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("list").set_defaults(func=cmd_list)
+    sub.add_parser("papers").set_defaults(func=cmd_papers)
     s = sub.add_parser("show"); s.add_argument("job"); s.set_defaults(func=cmd_show)
     r = sub.add_parser("reply"); r.add_argument("job")
     r.add_argument("file", nargs="?"); r.set_defaults(func=cmd_reply)
