@@ -52,7 +52,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   reset. `renderPaperDoc` re-typesets the whole `#doc` on every paper switch
   (`MathJax.typesetPromise()`, no scoping) - if a paper containing this label
   gets typeset more than once in one browser session (revisiting it via the
-  paper-switcher dropimport, or opening the same citation twice), MathJax
+  paper-switcher dropdown, or opening the same citation twice), MathJax
   would see the same `\label{...}` defined a second time and correctly (from
   its own point of view) flag a collision, even though our source only has it
   once. Fix direction: reset MathJax's tex label/tag state before each full
