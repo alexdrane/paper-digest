@@ -44,7 +44,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   stray answer that arrived after the last retry isn't stranded forever.
   Files: `scripts/viewer.html` (`addCard`, `streamJob`).
 
-- [ ] status: claimed | claimed: alex-drane-75 | **UI polish: long titles, figure loading state.**
+- [x] UI polish: title truncation + figure loading spinner. Done by alex-drane-75.
   Two reported issues: (1) long paper/section titles render unbounded and look
   bad — the `#paperSelect` dropdown options show the full title (native
   `<select>` doesn't support CSS ellipsis, so truncate the string itself, e.g.
