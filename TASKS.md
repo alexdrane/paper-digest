@@ -24,6 +24,44 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: open | claimed: — | **`\ensuremath{...}` inside a macro expansion renders as literal text.**
+  Reproduce: arXiv:2602.22307 defines `\newcommand{\days}{\ensuremath{\mathrm{days}}\xspace}`
+  and uses `\days` in body text (e.g. "10 \days"). Rendered output shows the
+  literal text `\ensuremath`, `days`, `\xspace` instead of just "days" — see
+  screenshot, §5.2 "Sampling Δt". `\ensuremath` isn't in `texhtml.py`'s
+  `SIMPLE` unwrap dict (`textbf`/`mbox`/etc.) or handled elsewhere, and
+  something about it surviving expansion suggests the generic
+  backslash-command-stripping fallback isn't reliably catching commands that
+  arrive via macro expansion (`expand_macros` output) rather than being
+  present in the original source text directly - needs tracing through
+  `inline()`'s actual order of operations to pin down, not just adding
+  `ensuremath` to `SIMPLE` (worth doing regardless, but may not be the whole
+  fix if the real issue is expansion-order related). `\mathrm{...}` isn't in
+  `SIMPLE` either and is likely part of the same failure.
+  Files: `scripts/texhtml.py` (`inline`, `SIMPLE`, `expand_macros`).
+
+- [ ] status: open | claimed: — | **MathJax "Label ... multiply defined" for a label that's only defined once in source.**
+  Reproduce: arXiv:2602.22307, the "regularised log-likelihood" equation.
+  Confirmed in the cached `fulltext.txt` — `\label{eqn:regularised-log-likelihood}`
+  appears exactly **once** as a definition (one `\ref` elsewhere referencing
+  it) - this is not a paper-authoring duplicate, it's a rendering bug. See
+  screenshot: MathJax renders "Label 'eqn:regularised-log-likelihood' multiply
+  defined" in place of the equation.
+  Working hypothesis: MathJax's AMS-math label registry is per-page and
+  persists across separate `MathJax.typesetPromise()` calls unless explicitly
+  reset. `renderPaperDoc` re-typesets the whole `#doc` on every paper switch
+  (`MathJax.typesetPromise()`, no scoping) - if a paper containing this label
+  gets typeset more than once in one browser session (revisiting it via the
+  paper-switcher dropimport, or opening the same citation twice), MathJax
+  would see the same `\label{...}` defined a second time and correctly (from
+  its own point of view) flag a collision, even though our source only has it
+  once. Fix direction: reset MathJax's tex label/tag state before each full
+  `#doc` re-typeset (`MathJax.texReset()` or clearing
+  `MathJax.startup.document`'s label list - check current MathJax v3 API) so
+  revisiting a paper doesn't accumulate stale label state.
+  Files: `scripts/viewer.html` (wherever `MathJax.typesetPromise()` is called
+  for a full paper render - `renderPaperDoc`).
+
 - [x] Refresh now restores the last-viewed paper. Done by alex-drane-75. **Browser refresh always reloads the launch paper, not whichever you were viewing.**
   Real gap on top of the LIB/FIGDIRS server-side persistence (already fixed):
   that fix means the *server* remembers every paper across a restart, but the
