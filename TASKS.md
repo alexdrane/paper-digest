@@ -24,7 +24,7 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
-- [ ] status: claimed | claimed: alex-drane-75 | **Browser refresh always reloads the launch paper, not whichever you were viewing.**
+- [x] Refresh now restores the last-viewed paper. Done by alex-drane-75. **Browser refresh always reloads the launch paper, not whichever you were viewing.**
   Real gap on top of the LIB/FIGDIRS server-side persistence (already fixed):
   that fix means the *server* remembers every paper across a restart, but the
   *initial page load* — `fetch('/paper').then(...)` at the top of
