@@ -13,6 +13,7 @@ spawning separately-billed `claude -p` subprocesses.
     bridge.py wait [--timeout N]   block until a request arrives, then print it
     bridge.py blocks <id> [term]   list a cached paper's blocks (id | section | raw)
     bridge.py saved                papers saved for later, with provenance
+    bridge.py bib                  references collected into references.bib
 """
 from __future__ import annotations
 
@@ -258,6 +259,43 @@ def cmd_saved(args) -> None:
         print("    " + "  |  ".join(bits))
 
 
+def cmd_bib(args) -> None:
+    """References collected from citations while reading, appended to a real
+    BibTeX file you can point your own paper's \\bibliography{} at. Saved from
+    the citation popover - works for citations that never resolve on arXiv.
+    Read-only; reads references.bib."""
+    import re
+    f = Path.home() / ".local/share/paper-digest/references.bib"
+    if not f.exists():
+        print("no references collected yet")
+        return
+    text = f.read_text()
+    entries = [b for b in re.split(r"(?=@\w+\{)", text) if b.strip().startswith("@")]
+    if not entries:
+        print(f"{f} is empty")
+        return
+    print(f"{f}  ({len(entries)} entr{'y' if len(entries)==1 else 'ies'})\n")
+    for b in entries:
+        km = re.search(r"@(\w+)\{\s*([^,\s]+)", b)
+        tm = re.search(r"^\s*title\s*=\s*[{\"](.+?)[}\"]\s*,?\s*$", b, re.I | re.M)
+        am = re.search(r"^\s*author\s*=\s*[{\"](.+?)[}\"]\s*,?\s*$", b, re.I | re.M)
+        ym = re.search(r"^\s*year\s*=\s*[{\"]?(\d{4})", b, re.I | re.M)
+        em = re.search(r"^\s*eprint\s*=\s*[{\"]?([^}\"\s,]+)", b, re.I | re.M)
+        if not km:
+            continue
+        kind, key = km.group(1), km.group(2)
+        title = (tm.group(1) if tm else "?").replace("\n", " ")
+        print(f"{key}  [{kind}]  {title[:70]}")
+        bits = []
+        if am:
+            au = am.group(1).split(" and ")
+            bits.append(au[0] + (" et al." if len(au) > 1 else ""))
+        if ym:
+            bits.append(ym.group(1))
+        bits.append(f"arXiv:{em.group(1)}" if em else "no arXiv match")
+        print("    " + "  |  ".join(bits))
+
+
 def cmd_blocks(args) -> None:
     """Render a cached paper's fulltext and list its blocks so an answering
     session can cite one by id with a `[[bNN]]` marker (post-processed in the
@@ -314,6 +352,7 @@ def main() -> None:
     sub.add_parser("list").set_defaults(func=cmd_list)
     sub.add_parser("papers").set_defaults(func=cmd_papers)
     sub.add_parser("saved").set_defaults(func=cmd_saved)
+    sub.add_parser("bib").set_defaults(func=cmd_bib)
     s = sub.add_parser("show"); s.add_argument("job"); s.set_defaults(func=cmd_show)
     r = sub.add_parser("reply"); r.add_argument("job")
     r.add_argument("file", nargs="?"); r.set_defaults(func=cmd_reply)

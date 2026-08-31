@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import difflib
 import json
+import re
 import socket
 import subprocess
 import sys
@@ -32,6 +33,7 @@ import texhtml  # noqa: E402
 CACHE = Path.home() / ".local/share/paper-digest/cache"
 BRIDGE = Path.home() / ".local/share/paper-digest/bridge"
 SAVED = Path.home() / ".local/share/paper-digest/saved.json"
+REFERENCES = Path.home() / ".local/share/paper-digest/references.bib"
 OPEN_PAPERS = Path.home() / ".local/share/paper-digest/open_papers.json"
 app = Flask(__name__)
 
@@ -219,8 +221,71 @@ def resolve_title(title: str) -> dict | None:
         if r > score:
             best, score = h, r
     if best and score >= 0.72:
-        return {"arxiv_id": best["id"], "title": best["title"], "confidence": round(score, 2)}
+        return {"arxiv_id": best["id"], "title": best["title"],
+                "authors": best.get("authors", []),
+                "year": (best.get("published", "") or "")[:4],
+                "confidence": round(score, 2)}
     return None
+
+
+# ------------------------------------------------------------- references.bib
+# A real, appendable BibTeX file the reader can point their own paper's
+# \bibliography{} at. Every "save reference" click appends one entry, built
+# either from resolved arXiv metadata or - for a citation that never resolves
+# (books, journal-only, pre-arXiv) - from the structured fields texhtml.py
+# recovered from the citing paper's typeset bibliography. Deduped by title.
+
+_BIB_KEY = re.compile(r"@\w+\{\s*([^,\s]+)\s*,")
+_BIB_TITLE = re.compile(r"^\s*title\s*=\s*[{\"](.+?)[}\"]\s*,?\s*$", re.I | re.M)
+
+
+def _norm_title(t: str) -> str:
+    return "".join(c.lower() for c in t if c.isalnum())
+
+
+def read_references() -> tuple[dict, set]:
+    """-> ({normalised title: existing key}, {all existing keys})."""
+    if not REFERENCES.exists():
+        return {}, set()
+    text = REFERENCES.read_text()
+    keys = set(_BIB_KEY.findall(text))
+    titles = {}
+    for block in re.split(r"(?=@\w+\{)", text):
+        km, tm = _BIB_KEY.search(block), _BIB_TITLE.search(block)
+        if km and tm:
+            titles[_norm_title(tm.group(1))] = km.group(1)
+    return titles, keys
+
+
+def _surname(author: str) -> str:
+    first = re.split(r"\s+and\s+", author.strip())[0].strip()
+    if "," in first:
+        return first.split(",")[0].strip()
+    parts = first.split()
+    return parts[-1] if parts else first
+
+
+def _mint_key(base: str, used: set) -> str:
+    base = re.sub(r"[^a-z0-9]", "", base.lower()) or "ref"
+    if base not in used:
+        return base
+    for suffix in "abcdefghijklmnopqrstuvwxyz":
+        if base + suffix not in used:
+            return base + suffix
+    n = 2
+    while f"{base}{n}" in used:
+        n += 1
+    return f"{base}{n}"
+
+
+def _bibtex(key: str, entry_type: str, fields: dict) -> str:
+    lines = [f"@{entry_type}{{{key},"]
+    for name, value in fields.items():
+        value = re.sub(r"\s+", " ", str(value or "")).strip().replace("{", "").replace("}", "")
+        if value:
+            lines.append(f"  {name} = {{{value}}},")
+    lines.append("}\n")
+    return "\n".join(lines)
 
 
 # ------------------------------------------------------------------------- routes
@@ -301,6 +366,82 @@ def resolve():
         t = titles.get(key, "")
         out[key] = {"display": doc["bib"].get(key, key), "match": resolve_title(t) if t else None}
     return jsonify(out)
+
+
+@app.get("/references")
+def references_list():
+    titles, keys = read_references()
+    return jsonify({"path": str(REFERENCES), "count": len(keys),
+                    "keys": sorted(keys)})
+
+
+@app.post("/savebib")
+def savebib():
+    """Append one BibTeX entry for a cited work to references.bib. Works whether
+    or not the citation resolved on arXiv - the client passes the resolved match
+    when it has one, otherwise we reconstruct from the citing paper's fields."""
+    data = request.get_json(force=True) or {}
+    doc = get_doc(data.get("from_id"))
+    if doc is None:
+        return jsonify({"error": "unknown source paper"}), 404
+    ckey = (data.get("key") or "").strip()
+    if not ckey:
+        return jsonify({"error": "missing key"}), 400
+
+    fields = (doc.get("bib_fields") or {}).get(ckey, {}) or {}
+    title = (doc.get("bib_titles") or {}).get(ckey, "") or fields.get("title", "")
+    display = (doc.get("bib") or {}).get(ckey, ckey)
+    match = data.get("match") or None
+
+    existing_titles, used_keys = read_references()
+    for cand in (title, (match or {}).get("title", "")):
+        nt = _norm_title(cand)
+        if nt and nt in existing_titles:
+            return jsonify({"ok": True, "already": True, "key": existing_titles[nt]})
+
+    if match and match.get("arxiv_id"):
+        aid = match["arxiv_id"]
+        authors = match.get("authors") or []
+        author = " and ".join(authors) if authors else fields.get("author", "")
+        year = str(match.get("year") or fields.get("year") or "")
+        entry_type = "article"
+        out_fields = {
+            "author": author,
+            "title": match.get("title") or title,
+            "journal": f"arXiv preprint arXiv:{aid}",
+            "year": year,
+            "eprint": aid,
+            "archivePrefix": "arXiv",
+        }
+        base = (_surname(author) if author else aid.replace("/", "")) + year
+    elif fields.get("author") or fields.get("title"):
+        entry_type = "article" if fields.get("journal") else "misc"
+        out_fields = {
+            "author": fields.get("author", ""),
+            "title": fields.get("title", "") or title,
+            "journal": fields.get("journal", ""),
+            "volume": fields.get("volume", ""),
+            "pages": fields.get("pages", ""),
+            "year": fields.get("year", ""),
+        }
+        base = (_surname(fields["author"]) if fields.get("author") else "ref") + fields.get("year", "")
+    else:
+        entry_type = "misc"
+        note = re.sub(r"\s+", " ", fields.get("note") or display or ckey).strip()
+        out_fields = {"title": note,
+                      "howpublished": "Reconstructed from a typeset bibliography; no arXiv match"}
+        ym = re.search(r"\b(19|20)\d{2}\b", note)
+        nm = re.match(r"([A-Z][A-Za-z'-]+)", note)
+        base = (nm.group(1) if nm else "ref") + (ym.group(0) if ym else "")
+
+    key = _mint_key(base, used_keys)
+    entry = _bibtex(key, entry_type, out_fields)
+    REFERENCES.parent.mkdir(parents=True, exist_ok=True)
+    sep = "\n" if REFERENCES.exists() and REFERENCES.stat().st_size else ""
+    with REFERENCES.open("a") as fh:
+        fh.write(sep + entry)
+    return jsonify({"ok": True, "key": key, "path": str(REFERENCES),
+                    "resolved": bool(match and match.get("arxiv_id"))})
 
 
 @app.post("/flag")

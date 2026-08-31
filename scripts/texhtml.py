@@ -184,10 +184,14 @@ def strip_tex(t: str) -> str:
     return re.sub(r"\s+", " ", t).strip(" ,.")
 
 
-def format_entry(body: str) -> tuple[str, str]:
+def format_entry(body: str) -> tuple[str, str, dict]:
     """revtex .bbl entries are \\bibinfo field/value pairs; plain ones are not.
-    Returns (display string, title alone) - the title is what citation resolution
-    searches arXiv with, so it needs to travel separately from the display text."""
+    Returns (display string, title alone, structured fields). The title is what
+    citation resolution searches arXiv with, so it travels separately from the
+    display text; the fields dict (author/title/journal/volume/pages/year, with
+    author joined BibTeX-style by " and ") is what reconstructs a .bib entry for
+    a citation that never resolves. For a plain entry with no \\bibinfo the dict
+    carries just {"note": flat text} as a last-resort @misc fallback."""
     fields: dict[str, str] = {}
     authors: list[str] = []
     for m in re.finditer(r"\\bibinfo\s*\{(\w+)\}\s*\{", body):
@@ -200,18 +204,21 @@ def format_entry(body: str) -> tuple[str, str]:
             fields.setdefault(m.group(1), val)
     if not fields and not authors:
         flat = strip_tex(body)
-        return flat, flat
+        return flat, flat, {"note": flat} if flat else {}
+    if authors:
+        fields["author"] = " and ".join(authors)
     who = ", ".join(authors[:3]) + (" et al." if len(authors) > 3 else "")
     venue = " ".join(x for x in (fields.get("journal", ""), fields.get("volume", "")) if x)
     out = ", ".join(x for x in (who, fields.get("title", ""), venue, fields.get("pages", "")) if x)
     if fields.get("year"):
         out += f" ({fields['year']})"
-    return out, fields.get("title", "")
+    return out, fields.get("title", ""), fields
 
 
-def parse_bbl(bbl: str) -> tuple[dict, dict]:
-    """\\bibitem entries -> ({key: readable citation}, {key: title only})."""
-    out, titles = {}, {}
+def parse_bbl(bbl: str) -> tuple[dict, dict, dict]:
+    """\\bibitem entries -> ({key: readable citation}, {key: title only},
+    {key: structured fields})."""
+    out, titles, allfields = {}, {}, {}
     for m in re.finditer(r"\\bibitem\s*", bbl):
         i = m.end()
         if i < len(bbl) and bbl[i] == "[":          # revtex label, may nest braces
@@ -222,11 +229,12 @@ def parse_bbl(bbl: str) -> tuple[dict, dict]:
             continue
         key, j = braced(bbl, i)
         nxt = re.search(r"\\bibitem|\\end\{thebibliography\}", bbl[j:])
-        display, title = format_entry(bbl[j: j + (nxt.start() if nxt else len(bbl))])
+        display, title, fields = format_entry(bbl[j: j + (nxt.start() if nxt else len(bbl))])
         key = key.strip()
         out[key] = display
         titles[key] = title
-    return out, titles
+        allfields[key] = fields
+    return out, titles, allfields
 
 
 # --------------------------------------------------------------------- inline pass
@@ -506,7 +514,8 @@ def resolve_refs(blocks: list[dict], labels: dict, bib: dict) -> None:
 
 def render(tex: str, figdir: str | None = None, arxiv_id: str | None = None) -> dict:
     bib_split = re.split(r"% ---- bibliography \(\.bbl\) ----", tex)
-    bib, bib_titles = parse_bbl(bib_split[1]) if len(bib_split) > 1 else ({}, {})
+    bib, bib_titles, bib_fields = (
+        parse_bbl(bib_split[1]) if len(bib_split) > 1 else ({}, {}, {}))
     tex = bib_split[0]
 
     split = re.search(r"\\begin\{document\}", tex)
@@ -517,7 +526,7 @@ def render(tex: str, figdir: str | None = None, arxiv_id: str | None = None) -> 
     if not bib:
         m = re.search(r"\\begin\{thebibliography\}[\s\S]*", body)
         if m:
-            bib, bib_titles = parse_bbl(m.group(0))
+            bib, bib_titles, bib_fields = parse_bbl(m.group(0))
             body = body[:m.start()]
 
     def grab(cmd: str) -> str:
@@ -547,7 +556,7 @@ def render(tex: str, figdir: str | None = None, arxiv_id: str | None = None) -> 
     resolve_refs(blocks, labels, bib)
     return {"title": title, "authors": authors, "abstract": abstract,
             "macros": extract_macros(preamble), "bib": bib, "bib_titles": bib_titles,
-            "blocks": blocks}
+            "bib_fields": bib_fields, "blocks": blocks}
 
 
 if __name__ == "__main__":
