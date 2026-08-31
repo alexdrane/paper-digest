@@ -56,7 +56,7 @@ html[data-theme=dark] .bdg.quiz{background:#4caf7d33;color:#5fcb96}
 .bdg:hover{filter:brightness(0.92)}
 
 /* ---------- paper ---------- */
-#main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+#main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;position:relative}
 #bar{flex:0 0 auto;display:flex;align-items:center;gap:.75rem;padding:.55rem 1.25rem;
      border-bottom:1px solid var(--line);background:var(--card);
      font:500 12.5px Inter,sans-serif;color:var(--dim)}
@@ -67,23 +67,37 @@ html[data-theme=dark] .bdg.quiz{background:#4caf7d33;color:#5fcb96}
 #qbtn{position:relative}
 #qcount{background:var(--accent);color:#fff;border-radius:8px;font:600 10px Inter,sans-serif;
         padding:.05rem .38rem;margin-left:.3rem}
-#qpanel,#graphpanel{position:absolute;top:2.6rem;right:1.25rem;z-index:70;width:340px;max-height:60vh;
+#qpanel{position:absolute;top:2.6rem;right:1.25rem;z-index:70;width:340px;max-height:60vh;
         overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;
         box-shadow:var(--shadow);display:none}
-#qpanel.open,#graphpanel.open{display:block}
-#qpanel .empty,#graphpanel .empty{padding:1.4rem;text-align:center;color:var(--faint);font:400 12.5px Inter,sans-serif}
-#graphpanel{width:360px;padding:.5rem 0}
-#graphpanel .ghead{padding:.5rem .85rem .3rem;font:600 9px Inter,sans-serif;letter-spacing:.1em;
-        text-transform:uppercase;color:var(--faint)}
-.gnode{padding:.2rem .85rem;display:flex;align-items:baseline;gap:.4rem}
-.gnode .gopen{background:none;border:0;color:var(--ink);text-align:left;cursor:pointer;padding:0;
-        font:500 12.5px Inter,sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.gnode .gopen:hover{color:var(--accent);text-decoration:underline}
-.gnode.cur .gopen{color:var(--accent)}
-.gtag{flex:0 0 auto;font:600 8px Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase;
-        color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:.1rem .3rem}
-.gedge{padding:.05rem .85rem .15rem;color:var(--faint);font:400 11px 'JetBrains Mono',monospace;
-        overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#qpanel.open{display:block}
+#qpanel .empty{padding:1.4rem;text-align:center;color:var(--faint);font:400 12.5px Inter,sans-serif}
+
+#graphpanel{position:absolute;top:3rem;right:.75rem;z-index:60;width:320px;
+        background:var(--card);border:1px solid var(--line);border-radius:10px;
+        box-shadow:var(--shadow);overflow:hidden;opacity:.96}
+#graphpanel:hover{opacity:1}
+#graphpanel .ghead{display:flex;justify-content:space-between;align-items:center;
+        padding:.4rem .7rem;font:600 8.5px Inter,sans-serif;letter-spacing:.11em;
+        text-transform:uppercase;color:var(--faint);border-bottom:1px solid var(--line)}
+#graphpanel .ghead button{background:none;border:0;color:var(--faint);cursor:pointer;
+        font:600 13px Inter,sans-serif;line-height:1;padding:0 .2rem}
+#graphpanel .ghead button:hover{color:var(--accent)}
+#graphpanel.collapsed{width:auto}
+#graphpanel.collapsed .ghead{border-bottom:0}
+#graphpanel.collapsed #gbody{display:none}
+#gbody svg{display:block;width:100%;touch-action:none}
+#gbody .gempty{padding:1.3rem .9rem;text-align:center;color:var(--faint);
+        font:400 11.5px Inter,sans-serif;line-height:1.5}
+#gbody .gl line{stroke:var(--rule);stroke-width:1}
+#gbody .gn{cursor:pointer}
+#gbody .gn text{font:500 9px Inter,sans-serif;fill:var(--dim);pointer-events:none}
+#gbody .gn .dot{fill:var(--rule);stroke:var(--card);stroke-width:1.5}
+#gbody .gn .ring{fill:none;stroke:var(--accent);stroke-width:1;stroke-dasharray:2 2}
+#gbody .gn.start .dot{fill:var(--dim)}
+#gbody .gn.cur .dot{fill:var(--accent)}
+#gbody .gn.cur text{fill:var(--ink);font-weight:600}
+#gbody .gn:hover text{fill:var(--accent)}
 .qrow{padding:.65rem .8rem;border-bottom:1px solid var(--line);display:flex;gap:.6rem;align-items:flex-start}
 .qrow:last-child{border-bottom:0}
 .qrow .kind{flex:0 0 auto;font:600 9px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;
@@ -385,8 +399,6 @@ h2[data-collapsed='1']::after,h3[data-collapsed='1']::after{
     <span id="stat"></span>
     <button id="qbtn" onclick="toggleQueue(event)" title="Pending requests">queue<span id="qcount" style="display:none"></span></button>
     <div id="qpanel" class="ui"></div>
-    <button id="webbtn" onclick="toggleGraph(event)" title="Citation web — papers reached by following citations">web</button>
-    <div id="graphpanel" class="ui"></div>
     <button onclick="endSession()" id="endbtn" title="Tell the Claude window you are done">done reading</button>
     <button onclick="toggleSave()" id="savebtn" title="Save this paper for later">☆</button>
     <button onclick="zoomText(-1)" title="Smaller text">A−</button>
@@ -394,6 +406,11 @@ h2[data-collapsed='1']::after,h3[data-collapsed='1']::after{
     <button onclick="toggleTheme()" id="themebtn" title="Theme">◐</button>
   </div>
   <div id="paper"><div id="prog"></div><div class="wrap" id="doc">loading…</div></div>
+  <div id="graphpanel" class="ui">
+    <div class="ghead"><span>citation web</span>
+      <button id="gcollapse" onclick="toggleGraphCollapse()" title="Collapse">–</button></div>
+    <div id="gbody"></div>
+  </div>
 </div>
 <div id="selbox" class="ui"><div class="row">
   <button id="askbtn">Ask about this</button>
@@ -489,6 +506,7 @@ function renderPaperDoc(p){
     c.onclick=e=>{e.stopPropagation();openCitePopover(e,c);};
   });
   refreshLibrary();
+  refreshGraph();
 }
 /* First view of a PDF/EPS/PS figure runs an on-demand server-side conversion
    (pdftoppm/ghostscript) that can take a second or two - show a spinner over
@@ -906,19 +924,23 @@ function refreshQueue(){
 setInterval(refreshQueue,4000);
 refreshQueue();
 
-/* ---- citation web ---- */
-function toggleGraph(e){
-  e.stopPropagation();
-  const p=$('graphpanel');
-  p.classList.contains('open')?p.classList.remove('open'):openGraph();
+/* ---- citation web: force-directed graph, persistent top-right ---- */
+const SVGNS='http://www.w3.org/2000/svg';
+const graphPos={};            // id -> {x,y}, kept across rebuilds so nodes don't jump
+
+try{ if(localStorage.getItem('pd-graph')==='1'){
+  $('graphpanel').classList.add('collapsed'); $('gcollapse').textContent='+'; $('gcollapse').title='Expand';
+} }catch(e){}
+
+function toggleGraphCollapse(){
+  const c=$('graphpanel').classList.toggle('collapsed');
+  $('gcollapse').textContent=c?'+':'–';
+  $('gcollapse').title=c?'Expand':'Collapse';
+  try{localStorage.setItem('pd-graph',c?'1':'0');}catch(e){}
+  if(!c) refreshGraph();
 }
-function openGraph(){$('graphpanel').classList.add('open');refreshGraph();}
-document.addEventListener('click',e=>{
-  if(!e.target.closest('#graphpanel')&&!e.target.closest('#webbtn'))
-    $('graphpanel').classList.remove('open');
-});
+
 function graphOpen(id){
-  $('graphpanel').classList.remove('open');
   if(id===CURRENT) return;
   const known=document.querySelector(`#paperSelect option[value="${CSS.escape(id)}"]`);
   (known?fetch('/paper?id='+encodeURIComponent(id))
@@ -928,51 +950,112 @@ function graphOpen(id){
     .then(renderPaperDoc).then(()=>toast('Opened arXiv:'+id))
     .catch(()=>toast('Could not open arXiv:'+id));
 }
+function svgPoint(svg,ev){
+  const pt=svg.createSVGPoint(); pt.x=ev.clientX; pt.y=ev.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
 function refreshGraph(){
+  const panel=$('graphpanel');
+  if(!panel || panel.classList.contains('collapsed')) return;
   fetch('/citation-graph').then(r=>r.json()).then(({nodes,edges,start})=>{
-    const p=$('graphpanel');
-    if(!edges.length){
-      p.innerHTML='<div class="empty">No citation trail yet.<br>'
-        +'Open a paper by clicking one of its citations and the path shows up here.</div>';
+    const body=$('gbody');
+    if(!nodes.length){
+      body.innerHTML='<div class="gempty">Follow one of a paper’s citations '
+        +'and the web of what led you where builds here.</div>';
       return;
     }
-    const node=id=>nodes.find(n=>n.id===id)||{id,title:id};
-    const out=new Map();                        // citing id -> [edge,...]
-    edges.forEach(ed=>{(out.get(ed.from)||out.set(ed.from,[]).get(ed.from)).push(ed);});
-    const cited=new Set(edges.map(ed=>ed.to));
-    // entry points: papers that cite something but nothing led you to them
-    let starts=nodes.filter(n=>out.has(n.id)&&!cited.has(n.id));
-    if(!starts.length) starts=nodes.filter(n=>out.has(n.id));   // pure cycle fallback
-    const drawn=new Set();
-    let html='';
-    const walk=(id,depth)=>{
-      const n=node(id);
-      html+=`<div class="gnode${id===CURRENT?' cur':''}" style="padding-left:${.85+depth*.9}rem">`
-           +`<button class="gopen" data-id="${esc(id)}" title="${esc(n.title||id)}">${esc(n.title||id)}</button>`
-           +(id===start?'<span class="gtag">start</span>':'')
-           +(n.saved?'<span class="gtag">★</span>':'')+'</div>';
-      drawn.add(id);
-      for(const ed of (out.get(id)||[])){
-        const via=ed.section||(ed.keys||[]).join(', ')||'citation';
-        html+=`<div class="gedge" style="padding-left:${.85+depth*.9+.7}rem" title="${esc(via)}">↳ ${esc(via)}</div>`;
-        if(drawn.has(ed.to)){
-          html+=`<div class="gnode" style="padding-left:${.85+(depth+1)*.9}rem">`
-               +`<button class="gopen" data-id="${esc(ed.to)}">${esc(node(ed.to).title||ed.to)}</button>`
-               +'<span class="gtag">↑ above</span></div>';
-        } else if(depth<8){
-          walk(ed.to,depth+1);
+    const W=panel.clientWidth||320, H=Math.max(210,Math.min(460,110+nodes.length*34));
+    const R=Math.min((W-90)/2,(H-70)/2);
+    const idx={}; nodes.forEach((n,i)=>idx[n.id]=i);
+    const N=nodes.map((n,i)=>{
+      const p=graphPos[n.id], a=i/nodes.length*6.283-1.57;
+      return {...n,
+        x:p?p.x:W/2+Math.cos(a)*R*(nodes.length>1?1:0),
+        y:p?p.y:H/2+Math.sin(a)*R*(nodes.length>1?1:0),
+        vx:0,vy:0,fx:null,fy:null};
+    });
+    const E=edges.filter(e=>e.from in idx && e.to in idx)
+                 .map(e=>({s:idx[e.from],t:idx[e.to],
+                           via:e.section||(e.keys||[]).join(', ')||'citation'}));
+
+    body.innerHTML=`<svg viewBox="0 0 ${W} ${H}" height="${H}"><g class="gl"></g><g class="gnw"></g></svg>`;
+    const svg=body.querySelector('svg');
+    const gl=svg.querySelector('.gl'), gnw=svg.querySelector('.gnw');
+    const lines=E.map(e=>{
+      const l=document.createElementNS(SVGNS,'line');
+      const tt=document.createElementNS(SVGNS,'title'); tt.textContent=e.via; l.appendChild(tt);
+      gl.appendChild(l); return l;
+    });
+    const groups=N.map(n=>{
+      const g=document.createElementNS(SVGNS,'g');
+      g.setAttribute('class','gn'+(n.id===CURRENT?' cur':'')+(n.start?' start':''));
+      const full=n.title||n.id;
+      const label=full.length>24?full.slice(0,23)+'…':full;
+      g.innerHTML=(n.saved?'<circle class="ring" r="8.5"/>':'')
+        +`<circle class="dot" r="${n.id===CURRENT?6.5:4.5}"/>`
+        +`<text x="10" y="3.5">${esc(label)}</text>`
+        +`<title>${esc(full)}</title>`;
+      gnw.appendChild(g);
+      let moved=false,dragging=false;
+      g.addEventListener('pointerdown',ev=>{
+        dragging=true; moved=false; n.fx=n.x; n.fy=n.y;
+        g.setPointerCapture(ev.pointerId);
+      });
+      g.addEventListener('pointermove',ev=>{
+        if(!dragging) return;
+        moved=true; const pt=svgPoint(svg,ev);
+        n.fx=pt.x; n.fy=pt.y; relax(5); paint();
+      });
+      g.addEventListener('pointerup',()=>{
+        dragging=false; n.fx=n.fy=null;
+        if(!moved) graphOpen(n.id); else { relax(20); paint(); }
+      });
+      return g;
+    });
+    const texts=groups.map(g=>g.querySelector('text'));
+
+    // Seeded on a circle, then a gentle relaxation: repulsion to unstack,
+    // edge springs to pull citations together, a weak pull to centre so it
+    // can't drift off-panel. Few iterations - enough to prettify, not enough
+    // to collapse a small graph to a line.
+    function relax(iters){
+      for(let it=0;it<iters;it++){
+        for(let i=0;i<N.length;i++) for(let j=i+1;j<N.length;j++){
+          let dx=N[i].x-N[j].x, dy=N[i].y-N[j].y, d=Math.hypot(dx,dy)||0.1;
+          let f=Math.min(10,7000/(d*d)); dx/=d; dy/=d;
+          N[i].vx+=dx*f; N[i].vy+=dy*f; N[j].vx-=dx*f; N[j].vy-=dy*f;
         }
+        E.forEach(e=>{
+          const a=N[e.s], b=N[e.t];
+          let dx=b.x-a.x, dy=b.y-a.y, d=Math.hypot(dx,dy)||0.1, f=(d-78)*0.03;
+          dx/=d; dy/=d;
+          a.vx+=dx*f; a.vy+=dy*f; b.vx-=dx*f; b.vy-=dy*f;
+        });
+        N.forEach(n=>{
+          if(n.fx!=null){ n.x=n.fx; n.y=n.fy; n.vx=n.vy=0; return; }
+          n.vx+=(W/2-n.x)*0.004; n.vy+=(H/2-n.y)*0.004;
+          n.vx*=0.82; n.vy*=0.82;
+          n.x+=n.vx; n.y+=n.vy;
+          n.x=Math.max(16,Math.min(W-16,n.x)); n.y=Math.max(14,Math.min(H-14,n.y));
+        });
       }
-    };
-    starts.forEach(n=>{ if(!drawn.has(n.id)) walk(n.id,0); });
-    // papers opened directly (no citation in or out)
-    const orphans=nodes.filter(n=>!drawn.has(n.id));
-    p.innerHTML='<div class="ghead">citation trail</div>'+html
-      +(orphans.length?'<div class="ghead">opened directly</div>'
-        +orphans.map(n=>`<div class="gnode${n.id===CURRENT?' cur':''}" style="padding-left:.85rem">`
-          +`<button class="gopen" data-id="${esc(n.id)}" title="${esc(n.title||n.id)}">${esc(n.title||n.id)}</button>`
-          +(n.id===start?'<span class="gtag">start</span>':'')+'</div>').join(''):'');
-    p.querySelectorAll('.gopen').forEach(b=>b.onclick=()=>graphOpen(b.dataset.id));
+    }
+    function paint(){
+      E.forEach((e,i)=>{
+        lines[i].setAttribute('x1',N[e.s].x); lines[i].setAttribute('y1',N[e.s].y);
+        lines[i].setAttribute('x2',N[e.t].x); lines[i].setAttribute('y2',N[e.t].y);
+      });
+      groups.forEach((g,i)=>{
+        g.setAttribute('transform',`translate(${N[i].x} ${N[i].y})`);
+        const right=N[i].x>W*0.58, t=texts[i];
+        t.setAttribute('x',right?-9:9);
+        t.setAttribute('text-anchor',right?'end':'start');
+      });
+      N.forEach(n=>{ graphPos[n.id]={x:n.x,y:n.y}; });
+    }
+    relax(90);
+    paint();
   });
 }
 
