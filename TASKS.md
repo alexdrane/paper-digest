@@ -91,14 +91,6 @@ Master will not edit a file a task below claims, to keep merges clean.
   possibly a separate, smaller regression from the same change.
   Files: `scripts/viewer.html` (`wrapFigures`, `.figspin`/`.figwrap` CSS).
 
-- [ ] status: claimed | claimed: alex-drane-7a | **"Why was this cited?" — contextual summary when a citation is opened.**
-  See full spec further down this file (unchanged) - reassigning to a fresh
-  worker since alex-drane-75 is stepping back after a long run. Not started.
-
-- [ ] status: claimed | claimed: alex-drane-06 | **Citation web/graph viewer.**
-  See full spec further down this file (unchanged) - its stated dependency
-  (LIB/open-paper persistence) has landed, so it's unblocked. Not started.
-
 - [x] URGENT bug fixed: figure src now embeds ?id=. Done by alex-drane-75.
   Confirmed against real server access logs (not synthetic tests) - every
   `/figure/<name>` request from the browser carries no `?id=` at all. Server's
@@ -275,7 +267,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   before running it through `inline()`.
   Files: `scripts/texhtml.py` (`render`, the `grab("title")` path).
 
-- [ ] status: open | claimed: — | **"Why was this cited?" — contextual summary when a citation is opened.**
+- [ ] status: claimed | claimed: alex-drane-7a | **"Why was this cited?" — contextual summary when a citation is opened.**
   Clicking a citation and opening the cited paper currently drops you into a
   generic full render with no framing. The actual reason someone clicks a
   citation is usually narrower: is this foundational, a data source, a
@@ -308,7 +300,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   request), `scripts/bridge.py`/`SKILL.md` (document the new request kind,
   same pattern as `question`/`summary`/`quiz`/`grade`).
 
-- [ ] status: open | claimed: — | **Citation web/graph viewer.**
+- [ ] status: claimed | claimed: alex-drane-06 | **Citation web/graph viewer.**
   As citations get opened, build up an actual traversable graph — not just a
   flat "papers I've opened" list. Depends on the durable open-paper tracking
   from the LIB/FIGDIRS persistence task (currently in flight) for stable ids
