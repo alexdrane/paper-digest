@@ -53,7 +53,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   arXiv-search path) before falling through to `resolve_title`'s network call.
   Files: `scripts/viewer.py` (`resolve_title` or the `/resolve` route).
 
-- [ ] status: claimed | claimed: alex-drane-21 | **Narrower discussion (chat) column.**
+- [x] status: done | claimed: alex-drane-21 | **Narrower discussion (chat) column.**
   `#side` is too wide relative to the paper. Reduce its default width (and/or
   its min/max drag-resize bounds) - exact numbers are a judgement call, but
   noticeably narrower than current, without breaking the resize handle.

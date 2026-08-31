@@ -300,7 +300,7 @@ h2[data-collapsed='1']::after,h3[data-collapsed='1']::after{
 /* ---------- side ---------- */
 #grip{flex:0 0 5px;cursor:col-resize;background:var(--line)}
 #grip:hover{background:var(--accent)}
-#side{flex:0 0 420px;min-width:300px;max-width:640px;border-left:1px solid var(--line);
+#side{flex:0 0 340px;min-width:280px;max-width:520px;border-left:1px solid var(--line);
       background:var(--chat);display:flex;flex-direction:column}
 #head{padding:.75rem 1rem;border-bottom:1px solid var(--line);display:flex;
       justify-content:space-between;align-items:center;
@@ -1418,7 +1418,7 @@ $('grip').addEventListener('mousedown',()=>{drag=true;document.body.style.userSe
 addEventListener('mouseup',()=>{drag=false;document.body.style.userSelect='';});
 addEventListener('mousemove',e=>{
   if(!drag) return;
-  const w=Math.min(640,Math.max(300,innerWidth-e.clientX));
+  const w=Math.min(520,Math.max(280,innerWidth-e.clientX));
   $('side').style.flexBasis=w+'px';
 });
 </script>
