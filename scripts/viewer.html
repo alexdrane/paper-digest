@@ -483,8 +483,15 @@ function wrapFigures(){
     const s=document.createElement('span');
     s.className='figspin'; s.innerHTML='<span class="spin"></span>';
     w.appendChild(s);
-    img.addEventListener('load',()=>s.remove(),{once:true});
-    img.addEventListener('error',()=>{s.innerHTML='<span class="figfail">figure failed to render</span>';},{once:true});
+    const done=()=>s.remove();
+    const fail=()=>{s.innerHTML='<span class="figfail">figure failed to render</span>';};
+    img.addEventListener('load',done,{once:true});
+    img.addEventListener('error',fail,{once:true});
+    // The load/error event can fire in the gap between the complete check above
+    // and these listeners being attached (a cached figure served instantly, plus
+    // the reparent) - {once:true} means we'd then never hear it and the opaque
+    // spinner sits forever over a fine image. Re-check synchronously.
+    if(img.complete) (img.naturalWidth>0?done:fail)();
   });
 }
 
