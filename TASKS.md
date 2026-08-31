@@ -42,7 +42,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   Files: `scripts/viewer.html` (replaces the current `#graphpanel` rendering
   in `refreshGraph`/`toggleGraph`, plus layout CSS for the new panel position).
 
-- [ ] status: claimed | claimed: alex-drane-21 | **Search the local cache before hitting the arXiv API for citation resolution.**
+- [x] status: done | claimed: alex-drane-21 | **Search the local cache before hitting the arXiv API for citation resolution.**
   `resolve_title` in `viewer.py` always calls out to the arXiv API. Cached
   papers accumulate over a reading session (currently 14 on disk) - if a
   citation's title matches one already fetched, that's a free, instant,
@@ -53,7 +53,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   arXiv-search path) before falling through to `resolve_title`'s network call.
   Files: `scripts/viewer.py` (`resolve_title` or the `/resolve` route).
 
-- [ ] status: open | claimed: — | **Narrower discussion (chat) column.**
+- [x] status: done | claimed: alex-drane-21 | **Narrower discussion (chat) column.**
   `#side` is too wide relative to the paper. Reduce its default width (and/or
   its min/max drag-resize bounds) - exact numbers are a judgement call, but
   noticeably narrower than current, without breaking the resize handle.
