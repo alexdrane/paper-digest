@@ -300,7 +300,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   request), `scripts/bridge.py`/`SKILL.md` (document the new request kind,
   same pattern as `question`/`summary`/`quiz`/`grade`).
 
-- [ ] status: claimed | claimed: alex-drane-06 | **Citation web/graph viewer.**
+- [ ] status: claimed | claimed: alex-drane-75 | **Citation web/graph viewer.**
   As citations get opened, build up an actual traversable graph — not just a
   flat "papers I've opened" list. Depends on the durable open-paper tracking
   from the LIB/FIGDIRS persistence task (currently in flight) for stable ids
