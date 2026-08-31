@@ -24,7 +24,7 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
-- [ ] status: claimed | claimed: alex-drane-75 | **Replace the citation graph panel with a real force-directed node graph.**
+- [x] Force-directed citation graph, top-right persistent panel. Done by alex-drane-75 — headless-verified render, drag/collapse-persist not interactively tested.
   The nested-list `#graphpanel` from the citation-graph task works but isn't
   what the user actually wanted: an Obsidian-style graph view - nodes that
   physically repel each other (force simulation), connected by lines for
