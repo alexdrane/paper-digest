@@ -24,6 +24,47 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: claimed | claimed: alex-drane-21 | **Collect a real, growing `.bib` file from citations - resolved or not.**
+  The user wants to collect references for their own paper while reading,
+  including ones that never resolve on arXiv (older papers, books, journal
+  articles with no preprint). We can't recover the author's actual `.bib`
+  source - it doesn't exist anywhere accessible - but we already parse enough
+  structured data to *reconstruct* a solid synthetic entry either way.
+  - **Groundwork**: `format_entry` in `texhtml.py` extracts a `fields` dict
+    (author/title/journal/volume/pages/year, from `\bibinfo{field}{value}` in
+    revtex-style `.bbl` entries) purely to build the human-readable "display"
+    string, then discards it. Thread those fields through instead of
+    discarding them - add a `bib_fields: {key: {field: value}}` to `render()`'s
+    return dict, alongside the existing `bib`/`bib_titles`. For plain (non-
+    revtex) `.bbl` entries where only a flat string is available, `fields`
+    will be empty/partial - that's fine, handle it as a lower-quality fallback
+    (an `@misc{}` with the flat text in a `note` field, per below).
+  - **Storage**: a real, appendable `.bib` file -
+    `~/.local/share/paper-digest/references.bib` - not a one-off export. Each
+    save appends a `@article{...}` (or `@misc{...}` for the flat-text
+    fallback) entry. Generate a citation key (e.g. `firstauthorYEAR`,
+    de-duplicated against existing keys in the file - two different papers'
+    citations can collide) and dedupe by matching title, not by re-adding the
+    same reference twice if saved from two different citing papers.
+  - **Two sources for the entry**, both should produce a usable one:
+    - Resolved on arXiv: build from the real arXiv metadata (title, authors,
+      id) - `journal = {arXiv preprint arXiv:XXXX.XXXXX}`, `eprint`,
+      `archivePrefix = {arXiv}` fields, standard shape.
+    - Not resolved: build from the *citing* paper's own `bib_fields` for that
+      key (the groundwork above) - clearly a reconstruction from a typeset
+      bibliography, not the original submission, but the same underlying
+      bibliographic data.
+  - **UI**: a "save reference" / "☆ bib" action in the citation popover -
+    available in *both* the resolved and "not found on arXiv" states (this is
+    the whole point: it should work for citations that don't resolve, which
+    is the case the user actually asked about).
+  - `bridge.py bib` (or similar) to show what's collected so far / the file
+    path, matching the style of `bridge.py saved`.
+  Files: `scripts/texhtml.py` (`format_entry`, `render` - the groundwork),
+  `scripts/viewer.py` (BibTeX construction + `references.bib` read/write +
+  a route), `scripts/viewer.html` (the popover action), `scripts/bridge.py`
+  (new command).
+
 - [x] Figure spinner race fixed (load/error firing before listeners attach). Done by alex-drane-21 — code-reasoned, not visually confirmed (no browser access). Alex needs to actually check in-browser.
 - [ ] status: open | claimed: — | **Follow-up: `.panels .figwrap img{width:100%}` force-upscales small figures.** Flagged by alex-drane-21 as a possibly separate cosmetic regression from the old `flex:1 1 340px;max-width:100%` sizing — not the same bug as the stuck spinner, needs someone with a browser to confirm before fixing. Files: `scripts/viewer.html` CSS.
   alex-drane-75 confirmed server-side is clean: curled every figure of all 8
