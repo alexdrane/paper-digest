@@ -24,6 +24,39 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: claimed | claimed: alex-drane-21 | **Figures still fail to render - client-side, not the ?id= bug (that's fixed).**
+  alex-drane-75 confirmed server-side is clean: curled every figure of all 8
+  loaded papers against the live server, 100% return 200. So this is a
+  separate, client-side bug in `wrapFigures()`/`.figspin`.
+  Diagnosis (alex-drane-75's, unverified in an actual browser - do that
+  first): `.figspin` is an *opaque* overlay
+  (`position:absolute;inset:0;background:var(--card)`), removed only by the
+  `img`'s `load` event. Most figures already have a cached `.conv.png`, so the
+  server responds near-instantly - if `wrapFigures` runs `img.replaceWith(w)`
+  (detaching and reattaching the `<img>` into a new wrapper) while that image
+  is mid-load, some browsers abort/never re-fire `load`, so neither `load` nor
+  `error` ever fires and the opaque spinner sits forever over a perfectly
+  loaded image underneath. Matches the exact symptom: figure fine, spinner
+  stuck.
+  Suggested fix, needs the actual visual symptom confirmed first (stuck
+  spinner? "figure failed to render" text? broken-image icon? - these have
+  different causes): after attaching both listeners, add a fallback check -
+  `if(img.complete) (img.naturalWidth>0 ? s.remove() : showFail());` - to
+  catch the case where the load/error event already fired (or never will)
+  before the listeners were attached. Also worth checking:
+  `.panels .figwrap img{width:100%}` force-upscales every figure regardless of
+  its natural size, vs the pre-wrapping `flex:1 1 340px;max-width:100%` -
+  possibly a separate, smaller regression from the same change.
+  Files: `scripts/viewer.html` (`wrapFigures`, `.figspin`/`.figwrap` CSS).
+
+- [ ] status: claimed | claimed: alex-drane-7a | **"Why was this cited?" — contextual summary when a citation is opened.**
+  See full spec further down this file (unchanged) - reassigning to a fresh
+  worker since alex-drane-75 is stepping back after a long run. Not started.
+
+- [ ] status: claimed | claimed: alex-drane-06 | **Citation web/graph viewer.**
+  See full spec further down this file (unchanged) - its stated dependency
+  (LIB/open-paper persistence) has landed, so it's unblocked. Not started.
+
 - [x] URGENT bug fixed: figure src now embeds ?id=. Done by alex-drane-75.
   Confirmed against real server access logs (not synthetic tests) - every
   `/figure/<name>` request from the browser carries no `?id=` at all. Server's
