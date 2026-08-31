@@ -24,7 +24,7 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
-- [ ] status: open | claimed: — | **Replace the citation graph panel with a real force-directed node graph.**
+- [ ] status: claimed | claimed: alex-drane-75 | **Replace the citation graph panel with a real force-directed node graph.**
   The nested-list `#graphpanel` from the citation-graph task works but isn't
   what the user actually wanted: an Obsidian-style graph view - nodes that
   physically repel each other (force simulation), connected by lines for
@@ -42,7 +42,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   Files: `scripts/viewer.html` (replaces the current `#graphpanel` rendering
   in `refreshGraph`/`toggleGraph`, plus layout CSS for the new panel position).
 
-- [ ] status: open | claimed: — | **Search the local cache before hitting the arXiv API for citation resolution.**
+- [ ] status: claimed | claimed: alex-drane-21 | **Search the local cache before hitting the arXiv API for citation resolution.**
   `resolve_title` in `viewer.py` always calls out to the arXiv API. Cached
   papers accumulate over a reading session (currently 14 on disk) - if a
   citation's title matches one already fetched, that's a free, instant,
