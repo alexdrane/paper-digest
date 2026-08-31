@@ -531,7 +531,15 @@ def render(tex: str, figdir: str | None = None, arxiv_id: str | None = None) -> 
 
     def grab(cmd: str) -> str:
         m = re.search(r"\\" + cmd + r"\s*\{", body)
-        return inline(braced(body, body.index("{", m.end() - 1))[0]) if m else ""
+        if not m:
+            return ""
+        raw = braced(body, body.index("{", m.end() - 1))[0]
+        # \title{} often carries a \thanks{}/\footnote{} (telescope credits,
+        # grant notes) - that footnote body is not part of the title.
+        for c in ("thanks", "footnote", "altaffiliation"):
+            raw = remove_cmd(raw, c)
+        raw = re.sub(r"\\\\|\s+", " ", raw).strip()   # a \\ linebreak in a title is just a space
+        return inline(raw)
 
     TEXT_MACROS.clear()
     TEXT_MACROS.update(macro_table(preamble))
