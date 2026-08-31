@@ -67,11 +67,23 @@ html[data-theme=dark] .bdg.quiz{background:#4caf7d33;color:#5fcb96}
 #qbtn{position:relative}
 #qcount{background:var(--accent);color:#fff;border-radius:8px;font:600 10px Inter,sans-serif;
         padding:.05rem .38rem;margin-left:.3rem}
-#qpanel{position:absolute;top:2.6rem;right:1.25rem;z-index:70;width:340px;max-height:60vh;
+#qpanel,#graphpanel{position:absolute;top:2.6rem;right:1.25rem;z-index:70;width:340px;max-height:60vh;
         overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;
         box-shadow:var(--shadow);display:none}
-#qpanel.open{display:block}
-#qpanel .empty{padding:1.4rem;text-align:center;color:var(--faint);font:400 12.5px Inter,sans-serif}
+#qpanel.open,#graphpanel.open{display:block}
+#qpanel .empty,#graphpanel .empty{padding:1.4rem;text-align:center;color:var(--faint);font:400 12.5px Inter,sans-serif}
+#graphpanel{width:360px;padding:.5rem 0}
+#graphpanel .ghead{padding:.5rem .85rem .3rem;font:600 9px Inter,sans-serif;letter-spacing:.1em;
+        text-transform:uppercase;color:var(--faint)}
+.gnode{padding:.2rem .85rem;display:flex;align-items:baseline;gap:.4rem}
+.gnode .gopen{background:none;border:0;color:var(--ink);text-align:left;cursor:pointer;padding:0;
+        font:500 12.5px Inter,sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gnode .gopen:hover{color:var(--accent);text-decoration:underline}
+.gnode.cur .gopen{color:var(--accent)}
+.gtag{flex:0 0 auto;font:600 8px Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase;
+        color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:.1rem .3rem}
+.gedge{padding:.05rem .85rem .15rem;color:var(--faint);font:400 11px 'JetBrains Mono',monospace;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .qrow{padding:.65rem .8rem;border-bottom:1px solid var(--line);display:flex;gap:.6rem;align-items:flex-start}
 .qrow:last-child{border-bottom:0}
 .qrow .kind{flex:0 0 auto;font:600 9px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;
@@ -373,6 +385,8 @@ h2[data-collapsed='1']::after,h3[data-collapsed='1']::after{
     <span id="stat"></span>
     <button id="qbtn" onclick="toggleQueue(event)" title="Pending requests">queue<span id="qcount" style="display:none"></span></button>
     <div id="qpanel" class="ui"></div>
+    <button id="webbtn" onclick="toggleGraph(event)" title="Citation web — papers reached by following citations">web</button>
+    <div id="graphpanel" class="ui"></div>
     <button onclick="endSession()" id="endbtn" title="Tell the Claude window you are done">done reading</button>
     <button onclick="toggleSave()" id="savebtn" title="Save this paper for later">☆</button>
     <button onclick="zoomText(-1)" title="Smaller text">A−</button>
@@ -616,7 +630,8 @@ function openCitePopover(e,cite){
          row.innerHTML=`<span class="spin"></span>fetching arXiv:${hit.arxiv_id}`
                       +` — can take up to a minute for a large paper…`;
          fetch('/open',{method:'POST',headers:{'Content-Type':'application/json'},
-           body:JSON.stringify({id:hit.arxiv_id})})
+           body:JSON.stringify({id:hit.arxiv_id, from_id:CURRENT,
+             section:cite.closest('.blk')?.dataset.sec||'', keys:[k]})})
           .then(r=>r.ok?r.json():r.json().then(e=>Promise.reject(e.error||'failed')))
           .then(doc=>{
             m.style.display='none';
@@ -890,6 +905,76 @@ function refreshQueue(){
 }
 setInterval(refreshQueue,4000);
 refreshQueue();
+
+/* ---- citation web ---- */
+function toggleGraph(e){
+  e.stopPropagation();
+  const p=$('graphpanel');
+  p.classList.contains('open')?p.classList.remove('open'):openGraph();
+}
+function openGraph(){$('graphpanel').classList.add('open');refreshGraph();}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#graphpanel')&&!e.target.closest('#webbtn'))
+    $('graphpanel').classList.remove('open');
+});
+function graphOpen(id){
+  $('graphpanel').classList.remove('open');
+  if(id===CURRENT) return;
+  const known=document.querySelector(`#paperSelect option[value="${CSS.escape(id)}"]`);
+  (known?fetch('/paper?id='+encodeURIComponent(id))
+        :fetch('/open',{method:'POST',headers:{'Content-Type':'application/json'},
+                        body:JSON.stringify({id})}))
+    .then(r=>r.ok?r.json():Promise.reject())
+    .then(renderPaperDoc).then(()=>toast('Opened arXiv:'+id))
+    .catch(()=>toast('Could not open arXiv:'+id));
+}
+function refreshGraph(){
+  fetch('/citation-graph').then(r=>r.json()).then(({nodes,edges,start})=>{
+    const p=$('graphpanel');
+    if(!edges.length){
+      p.innerHTML='<div class="empty">No citation trail yet.<br>'
+        +'Open a paper by clicking one of its citations and the path shows up here.</div>';
+      return;
+    }
+    const node=id=>nodes.find(n=>n.id===id)||{id,title:id};
+    const out=new Map();                        // citing id -> [edge,...]
+    edges.forEach(ed=>{(out.get(ed.from)||out.set(ed.from,[]).get(ed.from)).push(ed);});
+    const cited=new Set(edges.map(ed=>ed.to));
+    // entry points: papers that cite something but nothing led you to them
+    let starts=nodes.filter(n=>out.has(n.id)&&!cited.has(n.id));
+    if(!starts.length) starts=nodes.filter(n=>out.has(n.id));   // pure cycle fallback
+    const drawn=new Set();
+    let html='';
+    const walk=(id,depth)=>{
+      const n=node(id);
+      html+=`<div class="gnode${id===CURRENT?' cur':''}" style="padding-left:${.85+depth*.9}rem">`
+           +`<button class="gopen" data-id="${esc(id)}" title="${esc(n.title||id)}">${esc(n.title||id)}</button>`
+           +(id===start?'<span class="gtag">start</span>':'')
+           +(n.saved?'<span class="gtag">★</span>':'')+'</div>';
+      drawn.add(id);
+      for(const ed of (out.get(id)||[])){
+        const via=ed.section||(ed.keys||[]).join(', ')||'citation';
+        html+=`<div class="gedge" style="padding-left:${.85+depth*.9+.7}rem" title="${esc(via)}">↳ ${esc(via)}</div>`;
+        if(drawn.has(ed.to)){
+          html+=`<div class="gnode" style="padding-left:${.85+(depth+1)*.9}rem">`
+               +`<button class="gopen" data-id="${esc(ed.to)}">${esc(node(ed.to).title||ed.to)}</button>`
+               +'<span class="gtag">↑ above</span></div>';
+        } else if(depth<8){
+          walk(ed.to,depth+1);
+        }
+      }
+    };
+    starts.forEach(n=>{ if(!drawn.has(n.id)) walk(n.id,0); });
+    // papers opened directly (no citation in or out)
+    const orphans=nodes.filter(n=>!drawn.has(n.id));
+    p.innerHTML='<div class="ghead">citation trail</div>'+html
+      +(orphans.length?'<div class="ghead">opened directly</div>'
+        +orphans.map(n=>`<div class="gnode${n.id===CURRENT?' cur':''}" style="padding-left:.85rem">`
+          +`<button class="gopen" data-id="${esc(n.id)}" title="${esc(n.title||n.id)}">${esc(n.title||n.id)}</button>`
+          +(n.id===start?'<span class="gtag">start</span>':'')+'</div>').join(''):'');
+    p.querySelectorAll('.gopen').forEach(b=>b.onclick=()=>graphOpen(b.dataset.id));
+  });
+}
 
 $('q').addEventListener('keydown',e=>{
   if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();send();}
