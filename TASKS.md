@@ -140,7 +140,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   Files: `scripts/arxiv.py` (`fetch_source_text`), `scripts/viewer.py`
   (`load`, and the `/open`/`/paper` routes' relationship to it).
 
-- [ ] status: open | claimed: — | **Cache-hit check doesn't notice figures are missing.**
+- [x] Cache-hit check now detects missing figures and re-fetches. Done by alex-drane-75.
   Found and fixed live for one paper (arXiv:2602.22307 — real bug, confirmed:
   its tarball genuinely contains 8 figure PDFs at full size, but its cached
   `figures/` dir had zero files; `arxiv.py fetch --refresh` fixed it
