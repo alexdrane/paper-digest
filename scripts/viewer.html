@@ -357,6 +357,12 @@ h2[data-collapsed='1']::after,h3[data-collapsed='1']::after{
                font:500 11px Inter,sans-serif}
 .citerow .star:hover{border-color:var(--accent);color:var(--accent)}
 .citerow .star:disabled{cursor:default;color:var(--accent);border-color:var(--accent)}
+.citerow .cnote{font:400 11.5px Inter,sans-serif;color:var(--faint);margin-right:.4rem}
+.citerow .bibsave{margin-left:.4rem;background:none;border:1px solid var(--line);
+                  color:var(--dim);border-radius:5px;cursor:pointer;padding:.15rem .4rem;
+                  font:500 11px Inter,sans-serif}
+.citerow .bibsave:hover{border-color:var(--accent);color:var(--accent)}
+.citerow .bibsave:disabled{cursor:default;color:var(--accent);border-color:var(--accent)}
 </style>
 
 <nav id="toc" class="ui"><h6>Contents</h6><select id="paperSelect"></select><div id="toclist"></div></nav>
@@ -541,6 +547,31 @@ function switchPaper(id){
 }
 $('paperSelect').addEventListener('change',e=>switchPaper(e.target.value));
 
+/* Append a citation's reconstructed BibTeX entry to references.bib — works for
+   citations that never resolve on arXiv (the case this is really for), building
+   from the citing paper's own parsed bibliography fields when there's no match. */
+function bibBtn(key,match){
+  const b=document.createElement('button');
+  b.className='bibsave';
+  b.textContent='☆ bib';
+  b.title='Append this reference to your references.bib';
+  b.onclick=ev=>{
+    ev.stopPropagation();
+    b.disabled=true;
+    fetch('/savebib',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({from_id:CURRENT,key,match:match?{arxiv_id:match.arxiv_id,
+        title:match.title,authors:match.authors,year:match.year}:null})})
+     .then(r=>r.json()).then(res=>{
+       if(res.error){b.disabled=false;toast('Could not save reference: '+res.error);return;}
+       b.textContent=res.already?`★ bib (${res.key})`:`★ bib → ${res.key}`;
+       toast(res.already?`Already in references.bib as ${res.key}`
+                        :`Added ${res.key} to references.bib`);
+     })
+     .catch(()=>{b.disabled=false;toast('Could not save reference');});
+  };
+  return b;
+}
+
 /* ---- citation click: resolve on arXiv, open alongside the current paper ---- */
 function openCitePopover(e,cite){
   const keys=cite.dataset.keys.split(',');
@@ -559,9 +590,14 @@ function openCitePopover(e,cite){
        const row=m.querySelector(`.citerow[data-k="${CSS.escape(k)}"] .cstatus`);
        if(!row) return;
        const hit=res[k]&&res[k].match;
-       if(!hit){row.textContent='not found on arXiv';return;}
+       if(!hit){
+         row.innerHTML='<span class="cnote">not found on arXiv</span>';
+         row.appendChild(bibBtn(k,null));
+         return;
+       }
        row.innerHTML=`<button class="openin">Open arXiv:${hit.arxiv_id} in reader →</button>`
                     +`<button class="star" title="Save to your list without switching to it">☆ save</button>`;
+       row.appendChild(bibBtn(k,hit));
        row.querySelector('.star').onclick=(ev)=>{
          ev.stopPropagation();
          const s=ev.currentTarget; s.disabled=true;

@@ -24,7 +24,7 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
-- [ ] status: claimed | claimed: alex-drane-21 | **Collect a real, growing `.bib` file from citations - resolved or not.**
+- [x] status: done | claimed: alex-drane-21 | **Collect a real, growing `.bib` file from citations - resolved or not.**
   The user wants to collect references for their own paper while reading,
   including ones that never resolve on arXiv (older papers, books, journal
   articles with no preprint). We can't recover the author's actual `.bib`
