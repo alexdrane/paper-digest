@@ -24,7 +24,7 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
-- [ ] status: claimed | claimed: alex-drane-75 | **URGENT - real root cause: figure `<img>` src has no `?id=`, so figures only ever work for the launch paper.**
+- [x] URGENT bug fixed: figure src now embeds ?id=. Done by alex-drane-75.
   Confirmed against real server access logs (not synthetic tests) - every
   `/figure/<name>` request from the browser carries no `?id=` at all. Server's
   `/figure` route does `figdir = FIGDIRS.get(request.args.get("id") or
