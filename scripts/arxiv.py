@@ -212,12 +212,42 @@ def fetch_pdf_text(aid: str) -> str | None:
 
 # ------------------------------------------------------------------------ commands
 
+def missing_figures(text_p: Path, figdir: Path) -> list[str]:
+    """\\includegraphics targets in the cached text with no matching file in
+    figdir. Catches a cache written before figure extraction existed (or where
+    it silently failed): serving that hit gives the reader broken images with
+    no other signal. LaTeX often omits the extension, so a stem match counts.
+    """
+    try:
+        body = text_p.read_text()
+    except OSError:
+        return []
+    refs = {Path(g).name for g in
+            re.findall(r"\\includegraphics(?:\[[^\]]*\])?\s*\{([^}]*)\}", body)}
+    if not refs:
+        return []
+    if not figdir.is_dir():
+        return sorted(refs)
+    have = {p.name for p in figdir.iterdir()}
+    stems = {p.stem for p in figdir.iterdir()}
+    return sorted(r for r in refs if r not in have and Path(r).stem not in stems)
+
+
 def cmd_fetch(args) -> None:
     aid = normalize_id(args.id)
     d = cache_dir(aid)
     meta_p, text_p = d / "meta.json", d / "fulltext.txt"
 
-    if meta_p.exists() and text_p.exists() and not args.refresh:
+    serve_cache = meta_p.exists() and text_p.exists() and not args.refresh
+    if serve_cache and not args.pdf:
+        gaps = missing_figures(text_p, d / "figures")
+        if gaps:
+            shown = ", ".join(gaps[:3]) + ("..." if len(gaps) > 3 else "")
+            print(f"cached {aid}: {len(gaps)} referenced figure(s) absent from "
+                  f"figures/ ({shown}) - re-fetching", file=sys.stderr)
+            serve_cache = False
+
+    if serve_cache:
         meta = json.loads(meta_p.read_text())
         source = meta.get("text_source", "cache")
     else:
