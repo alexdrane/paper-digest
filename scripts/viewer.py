@@ -35,6 +35,7 @@ BRIDGE = Path.home() / ".local/share/paper-digest/bridge"
 SAVED = Path.home() / ".local/share/paper-digest/saved.json"
 REFERENCES = Path.home() / ".local/share/paper-digest/references.bib"
 OPEN_PAPERS = Path.home() / ".local/share/paper-digest/open_papers.json"
+CITATION_EDGES = Path.home() / ".local/share/paper-digest/citation_edges.json"
 app = Flask(__name__)
 
 LIB: dict[str, dict] = {}       # arxiv_id -> rendered doc
@@ -132,6 +133,38 @@ def remember_open(aid: str) -> None:
     ids.append(aid)
     OPEN_PAPERS.parent.mkdir(parents=True, exist_ok=True)
     OPEN_PAPERS.write_text(json.dumps(ids, indent=2))
+
+
+# --------------------------------------------------------------- citation edges
+# Every time a paper is opened by following one of its citations, record the
+# edge citing -> cited. open_papers.json is just the node set; this is what
+# makes it a traversable graph ("this paper led me to that one, via §X").
+
+def load_edges() -> list[dict]:
+    try:
+        data = json.loads(CITATION_EDGES.read_text())
+        return [e for e in data if isinstance(e, dict)] if isinstance(data, list) else []
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def add_edge(src: str, dst: str, section: str, keys: list) -> None:
+    """One edge per ordered (citing, cited) pair; a repeat click just unions
+    the bib keys and keeps the original section and opened_at."""
+    if not src or not dst or src == dst:
+        return
+    edges = load_edges()
+    for e in edges:
+        if e.get("from") == src and e.get("to") == dst:
+            merged = sorted(set(e.get("keys") or []) | set(keys or []))
+            if merged != e.get("keys"):
+                e["keys"] = merged
+                CITATION_EDGES.write_text(json.dumps(edges, indent=2))
+            return
+    edges.append({"from": src, "to": dst, "section": section or "",
+                  "keys": sorted(set(keys or [])), "opened_at": time.time()})
+    CITATION_EDGES.parent.mkdir(parents=True, exist_ok=True)
+    CITATION_EDGES.write_text(json.dumps(edges, indent=2))
 
 
 def restore_open() -> None:
@@ -343,7 +376,8 @@ def unsave_paper():
 
 @app.post("/open")
 def open_paper():
-    aid = (request.get_json(force=True) or {}).get("id", "").strip()
+    body = request.get_json(force=True) or {}
+    aid = (body.get("id") or "").strip()
     if not aid:
         return jsonify({"error": "missing id"}), 400
     if aid not in LIB:
@@ -351,7 +385,21 @@ def open_paper():
             load(aid)
         except Exception as exc:
             return jsonify({"error": str(exc)}), 502
-    return jsonify(LIB[aid])
+    src = (body.get("from_id") or "").strip()
+    if src:
+        add_edge(src, aid, (body.get("section") or "").strip(), body.get("keys") or [])
+    return jsonify({**LIB[aid], "saved": is_saved(aid)})
+
+
+@app.get("/citation-graph")
+def citation_graph():
+    edges = load_edges()
+    ids = {i for i in load_open_ids() if i}
+    for e in edges:
+        ids.update(x for x in (e.get("from"), e.get("to")) if x)
+    nodes = [{"id": i, "title": known_title(i) or i, "saved": is_saved(i),
+              "start": i == START_ID, "loaded": i in LIB} for i in sorted(ids)]
+    return jsonify({"start": START_ID, "nodes": nodes, "edges": edges})
 
 
 @app.post("/resolve")
