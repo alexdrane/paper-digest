@@ -50,7 +50,7 @@ def load(aid: str) -> dict:
         subprocess.run([sys.executable, str(script), "fetch", aid], check=True,
                        stdout=subprocess.DEVNULL)
     meta = json.loads((d / "meta.json").read_text())
-    doc = texhtml.render((d / "fulltext.txt").read_text(), "figures")
+    doc = texhtml.render((d / "fulltext.txt").read_text(), "figures", meta["id"])
     doc["arxiv_id"] = meta["id"]
     doc["abs_url"] = meta["abs_url"]
     doc["source"] = meta.get("text_source", "?")
