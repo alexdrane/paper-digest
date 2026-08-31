@@ -24,7 +24,8 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
-- [ ] status: claimed | claimed: alex-drane-21 | **Figures still fail to render - client-side, not the ?id= bug (that's fixed).**
+- [x] Figure spinner race fixed (load/error firing before listeners attach). Done by alex-drane-21 — code-reasoned, not visually confirmed (no browser access). Alex needs to actually check in-browser.
+- [ ] status: open | claimed: — | **Follow-up: `.panels .figwrap img{width:100%}` force-upscales small figures.** Flagged by alex-drane-21 as a possibly separate cosmetic regression from the old `flex:1 1 340px;max-width:100%` sizing — not the same bug as the stuck spinner, needs someone with a browser to confirm before fixing. Files: `scripts/viewer.html` CSS.
   alex-drane-75 confirmed server-side is clean: curled every figure of all 8
   loaded papers against the live server, 100% return 200. So this is a
   separate, client-side bug in `wrapFigures()`/`.figspin`.
