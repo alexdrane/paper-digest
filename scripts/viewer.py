@@ -223,8 +223,38 @@ def await_answer(job: str, timeout: float = 1800.0):
 
 # ---------------------------------------------------------------- citation resolve
 
+def _norm_words(s: str) -> str:
+    return " ".join("".join(c.lower() for c in s if c.isalnum() or c.isspace()).split())
+
+
+def resolve_from_cache(title: str) -> dict | None:
+    """A citation whose title matches a paper already in the local fetch cache
+    resolves for free: no arXiv round-trip, and none of the arXiv-search
+    false-miss / title-collision failure modes. Same similarity threshold as
+    the network path."""
+    want = _norm_words(title)
+    best, score = None, 0.0
+    for meta_path in CACHE.glob("*/meta.json"):
+        try:
+            meta = json.loads(meta_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not meta.get("title") or not meta.get("id"):
+            continue
+        r = difflib.SequenceMatcher(None, want, _norm_words(meta["title"])).ratio()
+        if r > score:
+            best, score = meta, r
+    if best and score >= 0.72:
+        return {"arxiv_id": best["id"], "title": best["title"],
+                "authors": best.get("authors", []),
+                "year": (best.get("published", "") or "")[:4],
+                "confidence": round(score, 2), "source": "cache"}
+    return None
+
+
 def resolve_title(title: str) -> dict | None:
-    """Search arXiv for a citation's title; accept only a confident match.
+    """Resolve a citation's title to an arXiv id: local fetch cache first, then
+    an arXiv API title search. Accept only a confident match.
 
     Citations are frequently books, websites, or pre-arXiv papers with no arXiv
     id at all - returning nothing for those is the correct, common outcome.
@@ -232,6 +262,9 @@ def resolve_title(title: str) -> dict | None:
     title = title.strip()
     if len(title) < 8:
         return None
+    local = resolve_from_cache(title)
+    if local:
+        return local
     script = Path(__file__).parent / "arxiv.py"
     query = 'ti:"' + title.replace('"', "") + '"'
     try:
@@ -257,7 +290,7 @@ def resolve_title(title: str) -> dict | None:
         return {"arxiv_id": best["id"], "title": best["title"],
                 "authors": best.get("authors", []),
                 "year": (best.get("published", "") or "")[:4],
-                "confidence": round(score, 2)}
+                "confidence": round(score, 2), "source": "arxiv"}
     return None
 
 
