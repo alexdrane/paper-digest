@@ -24,6 +24,41 @@ Master will not edit a file a task below claims, to keep merges clean.
 
 ## Open
 
+- [ ] status: open | claimed: — | **Replace the citation graph panel with a real force-directed node graph.**
+  The nested-list `#graphpanel` from the citation-graph task works but isn't
+  what the user actually wanted: an Obsidian-style graph view - nodes that
+  physically repel each other (force simulation), connected by lines for
+  citation edges, draggable/interactive, click a node to open/switch to that
+  paper. Data is already there (`GET /citation-graph` returns `{nodes, edges}`
+  unchanged - this is a rendering-layer swap, not a backend change).
+  Placement: a persistent panel in the **top-right** of the layout, not a
+  toggleable dropdown off a toolbar button like the current one - visible
+  alongside the paper, not hidden behind a click. Reasonable to keep it
+  collapsible/resizable, but default to visible.
+  Implementation is open - a small vanilla force simulation (a handful of
+  nodes/edges, doesn't need to be fast) or a lightweight force-layout library
+  is fine, whichever is less code to get right. No CDN/artifact restrictions
+  apply here (this is a locally-served Flask page, not a Claude artifact).
+  Files: `scripts/viewer.html` (replaces the current `#graphpanel` rendering
+  in `refreshGraph`/`toggleGraph`, plus layout CSS for the new panel position).
+
+- [ ] status: open | claimed: — | **Search the local cache before hitting the arXiv API for citation resolution.**
+  `resolve_title` in `viewer.py` always calls out to the arXiv API. Cached
+  papers accumulate over a reading session (currently 14 on disk) - if a
+  citation's title matches one already fetched, that's a free, instant,
+  correct resolution with no network round-trip and no risk of the
+  false-miss/title-collision issues already logged for the arXiv-search path.
+  Check local cache metadata (`~/.local/share/paper-digest/cache/*/meta.json`)
+  for a title match (same similarity-threshold approach as the existing
+  arXiv-search path) before falling through to `resolve_title`'s network call.
+  Files: `scripts/viewer.py` (`resolve_title` or the `/resolve` route).
+
+- [ ] status: open | claimed: — | **Narrower discussion (chat) column.**
+  `#side` is too wide relative to the paper. Reduce its default width (and/or
+  its min/max drag-resize bounds) - exact numbers are a judgement call, but
+  noticeably narrower than current, without breaking the resize handle.
+  Files: `scripts/viewer.html` CSS (`#side`, `#grip`-related bounds).
+
 - [x] status: done | claimed: alex-drane-21 | **Collect a real, growing `.bib` file from citations - resolved or not.**
   The user wants to collect references for their own paper while reading,
   including ones that never resolve on arXiv (older papers, books, journal
