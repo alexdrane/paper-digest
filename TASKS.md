@@ -254,7 +254,7 @@ Master will not edit a file a task below claims, to keep merges clean.
   (`renderPaperDoc`).
   Files: `scripts/viewer.html` only (`renderPaperDoc`, the initial `fetch`).
 
-- [ ] status: open | claimed: — | **Title extraction can capture a `\thanks`/footnote inside `\title{}`.**
+- [ ] status: claimed | claimed: alex-drane-75 | **Title extraction can capture a `\thanks`/footnote inside `\title{}`.**
   arXiv:0803.4015 (an old COSMOGRAIL paper) renders its title as the telescope
   acknowledgment credits ("Based on observations obtained with the 1.2m EULER
   Swiss Telescope...") instead of the actual paper title — its `\title{}`
