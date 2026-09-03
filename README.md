@@ -9,6 +9,13 @@ Code session running alongside you, not a separate API-billed call.
 Click a citation and it resolves against the arXiv API and opens right in the
 same window, so you can follow a citation trail without losing your place.
 
+## Background
+
+This was an old project for reading PDFs, set up for Part III exam revision,
+which I have redesigned — after being inspired by Natalie Hogg's skill
+([github.com/nataliehogg/skills](https://github.com/nataliehogg/skills)) — to
+streamline it for reading papers from the arXiv.
+
 ## Requirements
 
 - **Claude Code**, with an active subscription/API access
